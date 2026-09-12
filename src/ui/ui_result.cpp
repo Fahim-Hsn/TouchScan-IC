@@ -78,141 +78,155 @@ static void save_to_history(const ICTestResult *r) {
 static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     const ICDescriptor *ic = r->ic;
     
-    // Create an area for the IC visualization (centered)
+    // Create an area for the IC visualization
     lv_obj_t *ic_area = lv_obj_create(parent);
-    lv_obj_set_size(ic_area, DISPLAY_WIDTH - 20, 150);
-    lv_obj_align(ic_area, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_set_size(ic_area, DISPLAY_WIDTH, 170);
+    lv_obj_align(ic_area, LV_ALIGN_TOP_MID, 0, 40);
     lv_obj_set_style_bg_opa(ic_area, 0, 0); 
     lv_obj_set_style_border_width(ic_area, 0, 0);
     lv_obj_clear_flag(ic_area, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Physical IC Body
+    // Physical IC Body (Vertical)
     lv_obj_t *body = lv_obj_create(ic_area);
-    lv_obj_set_size(body, 220, 80);
-    lv_obj_align(body, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(body, lv_color_hex(0x111111), 0); // Dark grey
-    lv_obj_set_style_border_color(body, lv_color_hex(0x333333), 0);
+    lv_obj_set_size(body, 90, 130);
+    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_bg_color(body, lv_color_hex(0x223344), 0); // Light blue/grey IC body
+    lv_obj_set_style_border_color(body, lv_color_hex(0x556677), 0);
     lv_obj_set_style_border_width(body, 2, 0);
-    lv_obj_set_style_radius(body, 8, 0);
-    lv_obj_set_style_shadow_color(body, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_width(body, 20, 0);
+    lv_obj_set_style_radius(body, 6, 0);
     lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    // IC Notch (Orientation mark)
+    // IC Notch (Top center)
     lv_obj_t *notch = lv_obj_create(body);
-    lv_obj_set_size(notch, 20, 30);
-    lv_obj_align(notch, LV_ALIGN_LEFT_MID, -10, 0);
+    lv_obj_set_size(notch, 24, 24);
+    lv_obj_align(notch, LV_ALIGN_TOP_MID, 0, -14);
     lv_obj_set_style_radius(notch, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(notch, CLR_BG, 0);
-    lv_obj_set_style_border_color(notch, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_border_color(notch, lv_color_hex(0x556677), 0);
     lv_obj_set_style_border_width(notch, 2, 0);
     lv_obj_clear_flag(notch, LV_OBJ_FLAG_SCROLLABLE);
     
-    // IC Label text
+    // IC Label text inside body
     lv_obj_t *lbl_ic = lv_label_create(body);
-    char ic_lbl[32];
-    snprintf(ic_lbl, sizeof(ic_lbl), "%s", ic->ic_number);
+    char ic_lbl[64];
+    snprintf(ic_lbl, sizeof(ic_lbl), "%s\n%s", ic->ic_number, ic->full_name);
     lv_label_set_text(lbl_ic, ic_lbl);
-    lv_obj_set_style_text_color(lbl_ic, lv_color_hex(0x555555), 0); 
-    lv_obj_set_style_text_font(lbl_ic, FONT_SMALL, 0);
-    lv_obj_align(lbl_ic, LV_ALIGN_LEFT_MID, 25, -20);
+    lv_obj_set_style_text_color(lbl_ic, lv_color_hex(0x99AABB), 0); 
+    lv_obj_set_style_text_font(lbl_ic, FONT_TINY, 0);
+    lv_obj_set_style_text_align(lbl_ic, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_ic, LV_ALIGN_CENTER, 0, 0);
 
-    // Draw Pins
-    uint8_t pins_per_side = ic->pin_count / 2;
-    uint16_t pin_spacing = 180 / pins_per_side;
-    uint16_t start_x = 20 + (180 - (pins_per_side - 1) * pin_spacing) / 2;
-    
-    for (uint8_t i = 0; i < ic->pin_count; i++) {
-        bool is_bottom = (i < pins_per_side);
-        uint8_t pin_idx = is_bottom ? i : (ic->pin_count - 1 - i);
-        
-        lv_obj_t *pin = lv_obj_create(ic_area);
-        lv_obj_set_size(pin, 10, 16);
-        lv_coord_t px = (lv_coord_t)(start_x + pin_idx * pin_spacing + (300 - 220)/2 - 10);
-        lv_coord_t py = is_bottom ? (150/2 + 40) : (150/2 - 40 - 16);
-        lv_obj_align(pin, LV_ALIGN_TOP_LEFT, px, py);
-        
-        lv_obj_set_style_bg_color(pin, lv_color_hex(0xAAAAAA), 0);
-        lv_obj_set_style_bg_grad_color(pin, lv_color_hex(0x555555), 0);
-        lv_obj_set_style_bg_grad_dir(pin, LV_GRAD_DIR_VER, 0);
-        lv_obj_set_style_border_width(pin, 1, 0);
-        lv_obj_set_style_border_color(pin, lv_color_hex(0x222222), 0);
-        lv_obj_clear_flag(pin, LV_OBJ_FLAG_SCROLLABLE);
-
-        // Pin numbers
-        lv_obj_t *lbl_pin = lv_label_create(ic_area);
-        char pnum[4];
-        snprintf(pnum, sizeof(pnum), "%d", i + 1);
-        lv_label_set_text(lbl_pin, pnum);
-        lv_obj_set_style_text_font(lbl_pin, FONT_TINY, 0);
-        lv_obj_set_style_text_color(lbl_pin, CLR_TEXT_DIM, 0);
-        lv_obj_align(lbl_pin, LV_ALIGN_TOP_LEFT, px, is_bottom ? (py + 18) : (py - 14));
+    // Count good vs bad gates
+    uint8_t good_gates = 0;
+    uint8_t bad_gates = 0;
+    for (uint8_t g = 0; g < ic->num_gates; g++) {
+        if (r->gate_results[g].gate_pass) good_gates++;
+        else bad_gates++;
     }
 
-    // Draw Gates inside the IC body
-    uint8_t num_gates = ic->num_gates;
-    uint8_t cols = (num_gates <= 4) ? num_gates : ((num_gates + 1) / 2);
-    uint8_t rows = (num_gates <= 4) ? 1 : 2;
+    // Draw Pins and Colored Indicators
+    uint8_t pins_per_side = ic->pin_count / 2;
+    uint16_t pin_spacing = 130 / pins_per_side;
     
-    uint16_t gate_w = 40;
-    uint16_t gate_h = 30;
-    uint16_t spacing_x = (220 - 40) / cols;
-    uint16_t spacing_y = 80 / rows;
-    
-    for (uint8_t g = 0; g < num_gates; g++) {
-        const GateResult &gr = r->gate_results[g];
-        uint8_t c = g % cols;
-        uint8_t row = g / cols;
+    for (uint8_t i = 0; i < ic->pin_count; i++) {
+        bool is_left = (i < pins_per_side);
+        uint8_t row_idx = is_left ? i : (ic->pin_count - 1 - i);
+        uint8_t zif_pin = i + 1;
         
-        lv_obj_t *g_box = lv_obj_create(body);
-        lv_obj_set_size(g_box, gate_w, gate_h);
+        lv_coord_t py = 10 + row_idx * pin_spacing + (pin_spacing/2) - 3;
         
-        lv_coord_t x = 20 + c * spacing_x + (spacing_x - gate_w) / 2;
-        lv_coord_t y = row * spacing_y + (spacing_y - gate_h) / 2;
-        lv_obj_align(g_box, LV_ALIGN_TOP_LEFT, x, y);
+        // Metallic Pin Line
+        lv_obj_t *pin = lv_obj_create(ic_area);
+        lv_obj_set_size(pin, 16, 6);
+        lv_obj_align(pin, LV_ALIGN_TOP_MID, is_left ? -53 : 53, py);
+        lv_obj_set_style_bg_color(pin, lv_color_hex(0xAAAAAA), 0);
+        lv_obj_set_style_border_width(pin, 0, 0);
+        lv_obj_set_style_radius(pin, 0, 0);
+        lv_obj_clear_flag(pin, LV_OBJ_FLAG_SCROLLABLE);
+
+        // Determine Pin Color
+        lv_color_t dot_color = lv_color_hex(0x555555); // Default grey
+        bool is_faulty_output = false;
         
-        // Style depending on pass/fail
-        if (gr.gate_pass) {
-            lv_obj_set_style_bg_color(g_box, CLR_SUCCESS_DIM, 0);
-            lv_obj_set_style_bg_opa(g_box, LV_OPA_50, 0);
-            lv_obj_set_style_border_color(g_box, CLR_SUCCESS, 0);
-            lv_obj_set_style_shadow_color(g_box, CLR_SUCCESS, 0);
-            lv_obj_set_style_shadow_width(g_box, 15, 0);
-        } else {
-            lv_obj_set_style_bg_color(g_box, CLR_ERROR_DIM, 0);
-            lv_obj_set_style_bg_opa(g_box, LV_OPA_80, 0);
-            lv_obj_set_style_border_color(g_box, CLR_ERROR, 0);
-            lv_obj_set_style_shadow_color(g_box, CLR_ERROR, 0);
-            lv_obj_set_style_shadow_width(g_box, 25, 0);
-            
-            // Pulse animation
+        // Find if this pin is an output of any gate
+        for (uint8_t g = 0; g < ic->num_gates; g++) {
+            if (ic->gates[g].output_pin == zif_pin) {
+                if (r->gate_results[g].gate_pass) {
+                    dot_color = CLR_SUCCESS; // Green
+                } else {
+                    dot_color = CLR_ERROR; // Red
+                    is_faulty_output = true;
+                }
+                break;
+            }
+            // Check if it's an input
+            for (uint8_t inp = 0; inp < ic->gates[g].num_inputs; inp++) {
+                if (ic->gates[g].input_pins[inp] == zif_pin) {
+                    dot_color = lv_color_hex(0x00AAFF); // Blue for inputs
+                }
+            }
+        }
+        
+        // VCC / GND overrides
+        if (zif_pin == ic->vcc_pin) dot_color = lv_color_hex(0xFF00FF); // Magenta
+        if (zif_pin == ic->gnd_pin) dot_color = lv_color_hex(0xFF00FF);
+        
+        // Color Dot
+        lv_obj_t *dot = lv_obj_create(ic_area);
+        lv_obj_set_size(dot, 10, 10);
+        lv_obj_align(dot, LV_ALIGN_TOP_MID, is_left ? -68 : 68, py - 2);
+        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(dot, dot_color, 0);
+        lv_obj_set_style_border_width(dot, 0, 0);
+        lv_obj_clear_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
+        
+        if (is_faulty_output) {
+            // Pulse animation for faulty output pin
+            lv_obj_set_style_shadow_color(dot, CLR_ERROR, 0);
             lv_anim_t a;
             lv_anim_init(&a);
-            lv_anim_set_var(&a, g_box);
-            lv_anim_set_values(&a, 10, 35);
-            lv_anim_set_time(&a, 600);
-            lv_anim_set_playback_time(&a, 600);
+            lv_anim_set_var(&a, dot);
+            lv_anim_set_values(&a, 5, 15);
+            lv_anim_set_time(&a, 400);
+            lv_anim_set_playback_time(&a, 400);
             lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
             lv_anim_set_exec_cb(&a, [](void *obj, int32_t v) {
                 lv_obj_set_style_shadow_width((lv_obj_t *)obj, v, 0);
             });
             lv_anim_start(&a);
         }
-        
-        lv_obj_set_style_border_width(g_box, 2, 0);
-        lv_obj_set_style_radius(g_box, 4, 0);
-        lv_obj_clear_flag(g_box, LV_OBJ_FLAG_SCROLLABLE);
-        
-        // Gate label (e.g. "G1 AND")
-        lv_obj_t *lbl = lv_label_create(g_box);
-        char buf[16];
-        snprintf(buf, sizeof(buf), "G%d\n%s", gr.gate_id, ic_tester_gate_type_str(gr.type));
-        lv_label_set_text(lbl, buf);
-        lv_obj_set_style_text_font(lbl, FONT_TINY, 0);
-        lv_obj_set_style_text_color(lbl, gr.gate_pass ? CLR_SUCCESS : CLR_ERROR, 0);
-        lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
+
+        // Pin numbers
+        lv_obj_t *lbl_pin = lv_label_create(ic_area);
+        char pnum[4];
+        snprintf(pnum, sizeof(pnum), "%d", zif_pin);
+        lv_label_set_text(lbl_pin, pnum);
+        lv_obj_set_style_text_font(lbl_pin, FONT_TINY, 0);
+        lv_obj_set_style_text_color(lbl_pin, CLR_TEXT, 0);
+        lv_obj_align(lbl_pin, LV_ALIGN_TOP_MID, is_left ? -82 : 82, py - 4);
     }
+    
+    // Gate Summary Badge below IC
+    lv_obj_t *badge = lv_obj_create(ic_area);
+    lv_obj_set_size(badge, 260, 24);
+    lv_obj_align(badge, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(badge, (bad_gates > 0) ? CLR_ERROR_DIM : CLR_SUCCESS_DIM, 0);
+    lv_obj_set_style_border_color(badge, (bad_gates > 0) ? CLR_ERROR : CLR_SUCCESS, 0);
+    lv_obj_set_style_border_width(badge, 1, 0);
+    lv_obj_set_style_radius(badge, 12, 0);
+    lv_obj_clear_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t *lbl_badge = lv_label_create(badge);
+    char badge_txt[64];
+    if (bad_gates > 0) {
+        snprintf(badge_txt, sizeof(badge_txt), LV_SYMBOL_WARNING " GOOD GATES: %d  |  FAULTY GATES: %d", good_gates, bad_gates);
+    } else {
+        snprintf(badge_txt, sizeof(badge_txt), LV_SYMBOL_OK " ALL %d GATES PASSED", good_gates);
+    }
+    lv_label_set_text(lbl_badge, badge_txt);
+    lv_obj_set_style_text_font(lbl_badge, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_badge, (bad_gates > 0) ? CLR_ERROR : CLR_SUCCESS, 0);
+    lv_obj_align(lbl_badge, LV_ALIGN_CENTER, 0, 0);
 }
 
 // ─── Button callbacks ─────────────────────────────────────────────────────
