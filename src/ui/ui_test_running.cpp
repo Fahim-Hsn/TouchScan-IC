@@ -66,11 +66,13 @@ static void poll_test_complete(lv_timer_t *) {
         lv_label_set_text(lbl_gate_info, buf);
     }
 
-    // Check if test is complete. We MUST wait at least 300ms for the 
-    // lv_scr_load_anim (250ms) to finish, otherwise LVGL crashes due to overlapping transitions.
-    if (test_done && (millis() - t_start_ms > 300)) {
+    // Check if test is complete. We MUST wait at least 500ms for the 
+    // lv_scr_load_anim (250ms) and all UI objects to finish, otherwise LVGL crashes.
+    if (test_done && (millis() - t_start_ms > 500)) {
         lv_timer_del(t_poll);
         t_poll = nullptr;
+        // Small yield to let LVGL flush any pending draw operations
+        vTaskDelay(pdMS_TO_TICKS(50));
         // Navigate to result screen
         ui_result_show(&test_result);
     }
@@ -88,16 +90,7 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     scr_test = lv_obj_create(nullptr);
     theme_apply_screen(scr_test);
 
-    // Background grid
-    for (int i = 0; i < DISPLAY_HEIGHT / 20; i++) {
-        lv_obj_t *g = lv_obj_create(scr_test);
-        lv_obj_set_size(g, DISPLAY_WIDTH, 1);
-        lv_obj_set_pos(g, 0, i * 20);
-        lv_obj_set_style_bg_color(g, CLR_GRID, 0);
-        lv_obj_set_style_bg_opa(g, LV_OPA_30, 0);
-        lv_obj_set_style_border_width(g, 0, 0);
-        lv_obj_clear_flag(g, LV_OBJ_FLAG_CLICKABLE);
-    }
+    // Skip background grid to save LVGL objects and prevent memory pressure
 
     // ── Header ──────────────────────────────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr_test);
@@ -180,7 +173,7 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     xTaskCreatePinnedToCore(
         test_task,
         "ICTest",
-        4096,   // Stack size (4KB)
+        8192,   // Stack size (8KB — enough for GPIO operations + test logic)
         nullptr,
         5,      // High priority
         nullptr,
