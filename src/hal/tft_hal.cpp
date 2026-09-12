@@ -51,7 +51,7 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
-        if (p.z > 150) { // Valid touch pressure
+        if (p.z > 50) { // Lower pressure threshold for smoother, lighter touch
             // Use the calibrated mapping for landscape mode
             int screen_x = map(p.x, 3647, 297, 0, DISPLAY_WIDTH - 1);
             int screen_y = map(p.y, 3770, 397, 0, DISPLAY_HEIGHT - 1);
