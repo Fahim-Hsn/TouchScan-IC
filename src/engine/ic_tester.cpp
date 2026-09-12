@@ -35,6 +35,19 @@ const char *ic_tester_gate_type_str(GateType type) {
     }
 }
 
+// Map logical IC pin to physical ZIF socket pin
+// For a 16-pin ZIF socket, if a 14-pin IC is inserted at the top (Pin 1 to Pin 1):
+// Left side: IC pins 1-7 go to ZIF pins 1-7
+// Right side: IC pins 8-14 go to ZIF pins 10-16 (ZIF 8 and 9 are empty)
+static inline uint8_t physical_zif(uint8_t ic_pin, uint8_t pin_count) {
+    if (pin_count == 14) {
+        if (ic_pin >= 8 && ic_pin <= 14) {
+            return ic_pin + 2;
+        }
+    }
+    return ic_pin;
+}
+
 // ─── Main test function ───────────────────────────────────────────────────
 bool ic_tester_run(
     const ICDescriptor  *desc,
@@ -50,13 +63,14 @@ bool ic_tester_run(
     result.timestamp    = millis();
 
     uint32_t t_start = millis();
+    uint8_t pc = desc->pin_count;
 
     // === STEP 1: Release all ZIF pins to safe state ===
     zif_hal_release_all();
 
     // === STEP 2: Apply VCC and GND ===
-    zif_hal_configure(desc->vcc_pin, ZIFPinRole::VCC);
-    zif_hal_configure(desc->gnd_pin, ZIFPinRole::GND);
+    zif_hal_configure(physical_zif(desc->vcc_pin, pc), ZIFPinRole::VCC);
+    zif_hal_configure(physical_zif(desc->gnd_pin, pc), ZIFPinRole::GND);
     delayMicroseconds(500); // Let supply stabilise
 
     // === STEP 3: Test each gate ===
@@ -71,13 +85,17 @@ bool ic_tester_run(
         gr.input_pins[0] = gate.input_pins[0];
         gr.input_pins[1] = gate.input_pins[1];
 
+        uint8_t phys_out = physical_zif(gate.output_pin, pc);
+        uint8_t phys_in0 = physical_zif(gate.input_pins[0], pc);
+        uint8_t phys_in1 = gate.num_inputs > 1 ? physical_zif(gate.input_pins[1], pc) : 0;
+
         // Configure output pin as DUT_OUTPUT (read from IC)
-        zif_hal_configure(gate.output_pin, ZIFPinRole::DUT_OUTPUT);
+        zif_hal_configure(phys_out, ZIFPinRole::DUT_OUTPUT);
 
         // Configure input pins as DUT_INPUT
-        zif_hal_configure(gate.input_pins[0], ZIFPinRole::DUT_INPUT, false);
-        if (gate.num_inputs > 1 && gate.input_pins[1] != 0) {
-            zif_hal_configure(gate.input_pins[1], ZIFPinRole::DUT_INPUT, false);
+        zif_hal_configure(phys_in0, ZIFPinRole::DUT_INPUT, false);
+        if (phys_in1 != 0) {
+            zif_hal_configure(phys_in1, ZIFPinRole::DUT_INPUT, false);
         }
 
         // --- Truth table: iterate all input combinations ---
@@ -89,15 +107,15 @@ bool ic_tester_run(
             uint8_t in_b = (combo >> 1) & 1;
 
             // Apply inputs
-            zif_hal_write(gate.input_pins[0], in_a == 1);
-            if (gate.num_inputs > 1 && gate.input_pins[1] != 0) {
-                zif_hal_write(gate.input_pins[1], in_b == 1);
+            zif_hal_write(phys_in0, in_a == 1);
+            if (phys_in1 != 0) {
+                zif_hal_write(phys_in1, in_b == 1);
             }
 
             delayMicroseconds(PROP_DELAY_US); // Propagation delay
 
             // Read output
-            uint8_t actual   = zif_hal_read(gate.output_pin) ? 1 : 0;
+            uint8_t actual   = zif_hal_read(phys_out) ? 1 : 0;
             uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b);
             bool    row_pass = (actual == expected);
 
@@ -112,11 +130,11 @@ bool ic_tester_run(
         }
 
         // Float input pins after testing this gate (before next gate)
-        zif_hal_configure(gate.input_pins[0], ZIFPinRole::FLOAT);
-        if (gate.num_inputs > 1 && gate.input_pins[1] != 0) {
-            zif_hal_configure(gate.input_pins[1], ZIFPinRole::FLOAT);
+        zif_hal_configure(phys_in0, ZIFPinRole::FLOAT);
+        if (phys_in1 != 0) {
+            zif_hal_configure(phys_in1, ZIFPinRole::FLOAT);
         }
-        zif_hal_configure(gate.output_pin, ZIFPinRole::FLOAT);
+        zif_hal_configure(phys_out, ZIFPinRole::FLOAT);
 
         // Progress callback
         if (progress) progress(g + 1, desc->num_gates);
