@@ -91,8 +91,8 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     lv_obj_t *body = lv_obj_create(ic_area);
     lv_obj_set_size(body, 86, 120);
     lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 8);
-    lv_obj_set_style_bg_color(body, lv_color_hex(0x1A2B3C), 0);
-    lv_obj_set_style_border_color(body, lv_color_hex(0x445566), 0);
+    lv_obj_set_style_bg_color(body, CLR_BG_DARK, 0);
+    lv_obj_set_style_border_color(body, CLR_CYAN, 0);
     lv_obj_set_style_border_width(body, 2, 0);
     lv_obj_set_style_radius(body, 6, 0);
     lv_obj_set_style_pad_all(body, 0, 0);
@@ -103,8 +103,8 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     lv_obj_set_size(notch, 20, 20);
     lv_obj_align(notch, LV_ALIGN_TOP_MID, 0, -12);
     lv_obj_set_style_radius(notch, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(notch, CLR_BG, 0);
-    lv_obj_set_style_border_color(notch, lv_color_hex(0x445566), 0);
+    lv_obj_set_style_bg_color(notch, CLR_BG_DARK, 0);
+    lv_obj_set_style_border_color(notch, CLR_CYAN, 0);
     lv_obj_set_style_border_width(notch, 2, 0);
     lv_obj_clear_flag(notch, LV_OBJ_FLAG_SCROLLABLE);
     
@@ -124,7 +124,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     }
 
     lv_label_set_text(lbl_ic, body_txt);
-    lv_obj_set_style_text_color(lbl_ic, lv_color_hex(0x8899AA), 0); 
+    lv_obj_set_style_text_color(lbl_ic, CLR_TEXT, 0); 
     lv_obj_set_style_text_font(lbl_ic, FONT_TINY, 0);
     lv_obj_set_style_text_align(lbl_ic, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(lbl_ic, 80);
@@ -152,7 +152,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
         lv_coord_t py = 8 + row_idx * pin_spacing + (pin_spacing / 2) - 2;
         
         // Determine Pin Color
-        lv_color_t dot_color = lv_color_hex(0x666666); // Default grey
+        lv_color_t dot_color = lv_color_hex(0x5A3A8A); // Vibrant purple for unused/power pins
         bool is_faulty_output = false;
         
         for (uint8_t g = 0; g < ic->num_gates; g++) {
@@ -163,7 +163,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
             }
             for (uint8_t inp = 0; inp < ic->gates[g].num_inputs; inp++) {
                 if (ic->gates[g].input_pins[inp] == zif_pin) {
-                    dot_color = lv_color_hex(0x00AAFF);
+                    dot_color = CLR_CYAN;
                 }
             }
         }

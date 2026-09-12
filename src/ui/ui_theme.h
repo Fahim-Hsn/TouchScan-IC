@@ -8,27 +8,28 @@
 #include <lvgl.h>
 
 // ─── Color Palette ────────────────────────────────────────────────────────
-#define CLR_BG          lv_color_hex(0x000814)   // Deep space black
-#define CLR_BG_PANEL    lv_color_hex(0x001428)   // Panel / card background
-#define CLR_BG_DARK     lv_color_hex(0x000509)   // Darker background
+// Synthwave / Cyber Sunset Theme
+#define CLR_BG          lv_color_hex(0x1A0B2E)   // Deep violet black
+#define CLR_BG_PANEL    lv_color_hex(0x271447)   // Deep purple panel
+#define CLR_BG_DARK     lv_color_hex(0x110720)   // Darker background
 
-#define CLR_NEON        lv_color_hex(0x00D4FF)   // Primary neon blue
-#define CLR_CYAN        lv_color_hex(0x00FFFF)   // Bright cyan accent
-#define CLR_BLUE_DIM    lv_color_hex(0x0055AA)   // Dimmer blue (borders)
-#define CLR_BLUE_GLOW   lv_color_hex(0x003366)   // Glow/shadow colour
+#define CLR_NEON        lv_color_hex(0xF72585)   // Vibrant Pink
+#define CLR_CYAN        lv_color_hex(0x4CC9F0)   // Vibrant Cyan
+#define CLR_BLUE_DIM    lv_color_hex(0x4361EE)   // Vibrant Blue
+#define CLR_BLUE_GLOW   lv_color_hex(0x7209B7)   // Purple glow
 
-#define CLR_SUCCESS     lv_color_hex(0x00FF88)   // PASS green
-#define CLR_SUCCESS_DIM lv_color_hex(0x007744)
-#define CLR_ERROR       lv_color_hex(0xFF1144)   // FAIL red
-#define CLR_ERROR_DIM   lv_color_hex(0x880022)
-#define CLR_WARNING     lv_color_hex(0xFFAA00)   // Warning amber
+#define CLR_SUCCESS     lv_color_hex(0x06D6A0)   // Vibrant Teal/Green
+#define CLR_SUCCESS_DIM lv_color_hex(0x048260)
+#define CLR_ERROR       lv_color_hex(0xEF476F)   // Vibrant Coral/Red
+#define CLR_ERROR_DIM   lv_color_hex(0x942B44)
+#define CLR_WARNING     lv_color_hex(0xFFD166)   // Vibrant Yellow
 
-#define CLR_TEXT        lv_color_hex(0xD0EEFF)   // Primary text
-#define CLR_TEXT_DIM    lv_color_hex(0x6699BB)   // Secondary text
-#define CLR_TEXT_LABEL  lv_color_hex(0x4488AA)   // Label/hint text
+#define CLR_TEXT        lv_color_hex(0xF8F9FA)   // Bright white text
+#define CLR_TEXT_DIM    lv_color_hex(0xB4A7D6)   // Soft purple text
+#define CLR_TEXT_LABEL  lv_color_hex(0x4361EE)   // Blue label text
 
-#define CLR_GRID        lv_color_hex(0x001E3A)   // Subtle grid lines
-#define CLR_SEPARATOR   lv_color_hex(0x003355)   // Divider lines
+#define CLR_GRID        lv_color_hex(0x351C66)   // Purple grid lines
+#define CLR_SEPARATOR   lv_color_hex(0x482C82)   // Divider lines
 
 // ─── Opacity Macros ───────────────────────────────────────────────────────
 #define OPA_FULL    LV_OPA_COVER
