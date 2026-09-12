@@ -108,9 +108,22 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     lv_obj_set_style_border_width(notch, 2, 0);
     lv_obj_clear_flag(notch, LV_OBJ_FLAG_SCROLLABLE);
     
-    // IC Label text inside body
+    // IC Label text and Gate Status inside body
     lv_obj_t *lbl_ic = lv_label_create(body);
-    lv_label_set_text_fmt(lbl_ic, "%s\n%s", ic->ic_number, ic->full_name);
+    
+    char body_txt[128];
+    int offset = snprintf(body_txt, sizeof(body_txt), "%s\n", ic->ic_number);
+    
+    // Add G1: ✓ G2: ✗ format
+    for (uint8_t g = 0; g < ic->num_gates; g++) {
+        offset += snprintf(body_txt + offset, sizeof(body_txt) - offset, 
+            "G%d:%s ", g + 1, r->gate_results[g].gate_pass ? LV_SYMBOL_OK : LV_SYMBOL_CLOSE);
+        if (g % 2 == 1 && g < ic->num_gates - 1) { 
+            offset += snprintf(body_txt + offset, sizeof(body_txt) - offset, "\n");
+        }
+    }
+
+    lv_label_set_text(lbl_ic, body_txt);
     lv_obj_set_style_text_color(lbl_ic, lv_color_hex(0x8899AA), 0); 
     lv_obj_set_style_text_font(lbl_ic, FONT_TINY, 0);
     lv_obj_set_style_text_align(lbl_ic, LV_TEXT_ALIGN_CENTER, 0);

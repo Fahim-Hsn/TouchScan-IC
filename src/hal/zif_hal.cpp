@@ -3,6 +3,7 @@
  */
 #include "zif_hal.h"
 #include "../config.h"
+#include "driver/gpio.h"
 
 // ─── Internal helpers ─────────────────────────────────────────────────────
 
@@ -18,6 +19,10 @@ void zif_hal_init(void) {
     for (uint8_t p = 1; p <= 16; p++) {
         uint8_t gpio = zif_to_gpio(p);
         if (gpio == 0) continue;
+        
+        // Reset pin to detach from JTAG/other alternate functions (esp. GPIO 39-42 on S3)
+        gpio_reset_pin((gpio_num_t)gpio);
+        
         pinMode(gpio, INPUT);  // High-Z — safe default
     }
     Serial.println("[ZIF] All 16 ZIF pins initialised as INPUT (high-Z)");
