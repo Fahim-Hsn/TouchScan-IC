@@ -124,7 +124,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     }
 
     lv_label_set_text(lbl_ic, body_txt);
-    lv_obj_set_style_text_color(lbl_ic, CLR_TEXT, 0); 
+    lv_obj_set_style_text_color(lbl_ic, lv_color_hex(0xFFFFFF), 0); // Force white text on Indigo IC body
     lv_obj_set_style_text_font(lbl_ic, FONT_TINY, 0);
     lv_obj_set_style_text_align(lbl_ic, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(lbl_ic, 80);
