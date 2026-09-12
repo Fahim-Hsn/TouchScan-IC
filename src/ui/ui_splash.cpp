@@ -40,11 +40,6 @@ static const char *boot_msgs[] = {
 };
 constexpr uint8_t NUM_BOOT_MSGS = sizeof(boot_msgs) / sizeof(boot_msgs[0]);
 
-// ─── Transition to Home ───────────────────────────────────────────────────
-static void do_transition(lv_timer_t *) {
-    ui_home_show();
-}
-
 // ─── Boot sequence timer ──────────────────────────────────────────────────
 static void sequence_cb(lv_timer_t *t) {
     seq_step++;
@@ -119,24 +114,13 @@ static void sequence_cb(lv_timer_t *t) {
         }
 
         case 4: {
-            // Fade out entire screen and transition to Home
-            lv_anim_t a;
-            lv_anim_init(&a);
-            lv_anim_set_var(&a, scr_splash);
-            lv_anim_set_exec_cb(&a, [](void *obj, int32_t v) {
-                lv_obj_set_style_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
-            });
-            lv_anim_set_values(&a, 255, 0);
-            lv_anim_set_time(&a, 400);
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
-            lv_anim_set_deleted_cb(&a, [](lv_anim_t *) {
-                // Create a one-shot timer to navigate to home
-                lv_timer_create(do_transition, 50, nullptr);
-            });
-            lv_anim_start(&a);
+            if (t_sequence) {
+                lv_timer_del(t_sequence);
+                t_sequence = nullptr;
+            }
 
-            lv_timer_del(t_sequence);
-            t_sequence = nullptr;
+            // Seamlessly transition to Home screen
+            ui_home_show();
             break;
         }
     }

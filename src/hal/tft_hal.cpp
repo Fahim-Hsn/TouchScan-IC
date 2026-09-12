@@ -1,21 +1,37 @@
 /**
  * tft_hal.cpp — TFT Display + Touch Implementation
- * ST7789 SPI + XPT2046 via TFT_eSPI, registered as LVGL display/input drivers
+ * ST7789 SPI + XPT2046 via Adafruit_ST7789, registered as LVGL display/input drivers
  */
 #include "tft_hal.h"
 #include "../config.h"
 
-// ─── Global TFT instance ──────────────────────────────────────────────────
-TFT_eSPI tft = TFT_eSPI();
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+#include <XPT2046_Touchscreen.h>
 
-// ─── LVGL Draw Buffers (allocated in PSRAM) ───────────────────────────────
-// Full double-buffer for maximum smoothness (320*240*2 bytes each = 150 KB)
-static lv_color_t *draw_buf1 = nullptr;
-static lv_color_t *draw_buf2 = nullptr;
+// --- Pin Definitions for Adafruit ---
+#define TFT_CS   10
+#define TFT_DC   9
+#define TFT_RST  8
+#define SPI_SCK  12
+#define SPI_MISO 13
+#define SPI_MOSI 11
+#define TOUCH_CS 7
+#define TOUCH_IRQ 6
 
+// ─── Global instances ─────────────────────────────────────────────────────
+Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
+XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+
+// ─── LVGL Draw Buffers (allocated in SRAM) ────────────────────────────────
+static lv_color_t fb_buf[DISPLAY_WIDTH * 30]; // 30 lines buffer (faster flushes)
 static lv_disp_draw_buf_t disp_draw_buf;
 static lv_disp_drv_t      disp_drv;
 static lv_indev_drv_t     indev_drv;
+
+static lv_coord_t last_touch_x = 0;
+static lv_coord_t last_touch_y = 0;
 
 // ─── LVGL Flush Callback ──────────────────────────────────────────────────
 static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p) {
@@ -24,8 +40,8 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 
     tft.startWrite();
     tft.setAddrWindow(area->x1, area->y1, w, h);
-    // pushColors casts lv_color_t* → uint16_t* (RGB565 direct)
-    tft.pushColors(reinterpret_cast<uint16_t *>(color_p), w * h, true);
+    // Write pixels directly using Adafruit's writePixels
+    tft.writePixels((uint16_t*)color_p, w * h, true, false);
     tft.endWrite();
 
     lv_disp_flush_ready(drv);
@@ -33,52 +49,68 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 
 // ─── LVGL Touch Read Callback ─────────────────────────────────────────────
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-    uint16_t tx = 0, ty = 0;
-    if (tft.getTouch(&tx, &ty, 600)) {   // 600 = Z-threshold (adjust if needed)
-        data->point.x  = (lv_coord_t)tx;
-        data->point.y  = (lv_coord_t)ty;
-        data->state    = LV_INDEV_STATE_PRESSED;
-    } else {
-        data->state = LV_INDEV_STATE_RELEASED;
+    if (ts.touched()) {
+        TS_Point p = ts.getPoint();
+        if (p.z > 150) { // Valid touch pressure
+            // Use the calibrated mapping for landscape mode
+            int screen_x = map(p.x, 3647, 297, 0, DISPLAY_WIDTH - 1);
+            int screen_y = map(p.y, 3770, 397, 0, DISPLAY_HEIGHT - 1);
+
+            screen_x = constrain(screen_x, 0, DISPLAY_WIDTH - 1);
+            screen_y = constrain(screen_y, 0, DISPLAY_HEIGHT - 1);
+
+            last_touch_x = (lv_coord_t)screen_x;
+            last_touch_y = (lv_coord_t)screen_y;
+
+            data->point.x = last_touch_x;
+            data->point.y = last_touch_y;
+            data->state   = LV_INDEV_STATE_PRESSED;
+            return;
+        }
     }
+
+    // Critical for LVGL: On release, maintain the last pressed point
+    data->point.x = last_touch_x;
+    data->point.y = last_touch_y;
+    data->state   = LV_INDEV_STATE_RELEASED;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────
 void tft_hal_init(void) {
-    // --- Allocate draw buffers in PSRAM ---
-    size_t buf_px = DISPLAY_WIDTH * DISPLAY_HEIGHT;
-    draw_buf1 = static_cast<lv_color_t *>(ps_malloc(buf_px * sizeof(lv_color_t)));
-    draw_buf2 = static_cast<lv_color_t *>(ps_malloc(buf_px * sizeof(lv_color_t)));
+    // Deselect both SPI devices before bus initialization
+    pinMode(TFT_CS, OUTPUT);
+    digitalWrite(TFT_CS, HIGH);
+    pinMode(TOUCH_CS, OUTPUT);
+    digitalWrite(TOUCH_CS, HIGH);
 
-    if (!draw_buf1 || !draw_buf2) {
-        Serial.println("[TFT] ERROR: PSRAM allocation failed for draw buffers!");
-        // Fallback to a smaller buffer in DRAM
-        static lv_color_t fb_small[320 * 10];
-        lv_disp_draw_buf_init(&disp_draw_buf, fb_small, nullptr, 320 * 10);
-    } else {
-        lv_disp_draw_buf_init(&disp_draw_buf, draw_buf1, draw_buf2, buf_px);
+    // --- Init SPI and Display ---
+    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+    
+    tft.init(240, 320);
+    tft.setSPISpeed(40000000); // 40MHz SPI clock for ST7789
+    tft.setRotation(1); // Landscape
+    tft.fillScreen(ST77XX_BLACK);
+
+    // --- Init Touch ---
+    if (!ts.begin(SPI)) {
+        Serial.println("[TFT] Touch initialization failed!");
     }
-
-    // --- Init TFT hardware ---
-    tft.init();
-    tft.setRotation(1);          // Landscape: 320 x 240
-    tft.fillScreen(TFT_BLACK);
+    ts.setRotation(1);
 
     // --- Backlight via LEDC ---
     ledcSetup(BL_LEDC_CH, BL_LEDC_FREQ, BL_LEDC_RES);
     ledcAttachPin(TFT_BL_GPIO, BL_LEDC_CH);
-    tft_hal_set_brightness(90);  // 90% brightness default
-
-    // --- Apply touch calibration ---
-    tft.setTouch(const_cast<uint16_t *>(TOUCH_CAL));
+    tft_hal_set_brightness(90);
 
     // --- Register LVGL display driver ---
+    lv_disp_draw_buf_init(&disp_draw_buf, fb_buf, nullptr, DISPLAY_WIDTH * 30);
+    
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res    = DISPLAY_WIDTH;
     disp_drv.ver_res    = DISPLAY_HEIGHT;
     disp_drv.flush_cb   = lvgl_flush_cb;
     disp_drv.draw_buf   = &disp_draw_buf;
-    disp_drv.full_refresh = 0;  // Partial refresh enabled
+    disp_drv.full_refresh = 0;
     lv_disp_drv_register(&disp_drv);
 
     // --- Register LVGL touch input driver ---
@@ -87,7 +119,7 @@ void tft_hal_init(void) {
     indev_drv.read_cb = lvgl_touch_cb;
     lv_indev_drv_register(&indev_drv);
 
-    Serial.println("[TFT] Display + touch initialised (320x240 landscape)");
+    Serial.println("[TFT] Adafruit Display + touch initialised");
 }
 
 void tft_hal_set_brightness(uint8_t pct) {
@@ -97,19 +129,6 @@ void tft_hal_set_brightness(uint8_t pct) {
 }
 
 void tft_hal_calibrate_touch(void) {
-    uint16_t cal[5];
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setTextSize(1);
-    tft.println("Touch calibration — follow the dots");
-    tft.calibrateTouch(cal, TFT_WHITE, TFT_BLACK, 15);
-    // Print calibration values for user to paste into config.h
-    Serial.print("[TFT] Calibration values: { ");
-    for (int i = 0; i < 5; i++) {
-        Serial.print(cal[i]);
-        if (i < 4) Serial.print(", ");
-    }
-    Serial.println(" }");
-    // Apply immediately
-    tft.setTouch(cal);
+    // Calibration is now hardcoded via the user's working map() values in the touch callback.
+    Serial.println("[TFT] Touch is pre-calibrated.");
 }

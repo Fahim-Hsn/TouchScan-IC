@@ -176,13 +176,14 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     lv_scr_load_anim(scr_test, LV_SCR_LOAD_ANIM_FADE_ON, 250, 0, true);
 
     // ── Start the test in a FreeRTOS task ────────────────────────────────
-    xTaskCreate(
+    xTaskCreatePinnedToCore(
         test_task,
         "ICTest",
         4096,   // Stack size (4KB)
         nullptr,
         5,      // High priority
-        nullptr
+        nullptr,
+        0       // Pin to Core 0 (PRO_CPU) so it doesn't block LVGL on Core 1
     );
 
     // ── Poll timer to update UI and check completion ──────────────────────

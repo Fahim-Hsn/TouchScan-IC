@@ -387,10 +387,11 @@ void ui_result_show(const ICTestResult *result) {
     // ── Load & trigger effects ──────────────────────────────────────────────
     lv_scr_load_anim(scr_result, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
 
-    // Play buzzer after screen appears
-    lv_timer_create([](lv_timer_t *) {
+    // Play buzzer after screen appears (one-shot)
+    lv_timer_create([](lv_timer_t *t) {
         if (g_result && g_result->overall_pass) buzzer_hal_beep_good();
         else                                    buzzer_hal_beep_bad();
+        lv_timer_del(t);
     }, 350, nullptr);
 
     // Flash red on fail

@@ -109,4 +109,4 @@ constexpr uint8_t  MAX_HISTORY_ENTRIES = 20;
 
 // ─── Touch Calibration (typical for 2.8" XPT2046, landscape) ─────────────
 // Run tft.calibrateTouch() once to get your exact values
-constexpr uint16_t TOUCH_CAL[5] = { 275, 3620, 264, 3532, 1 };
+constexpr uint16_t TOUCH_CAL[5] = { 297, 3647, 397, 3770, 1 };

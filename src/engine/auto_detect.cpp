@@ -81,6 +81,9 @@ const ICDescriptor *auto_detect_ic(uint8_t *confidence_out) {
 
         // Perfect match — stop early
         if (score == 100) break;
+
+        // Yield to FreeRTOS to keep LVGL animations smooth
+        delay(1);
     }
 
     if (confidence_out) *confidence_out = best_score;

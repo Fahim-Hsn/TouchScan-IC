@@ -4,11 +4,12 @@
  */
 #pragma once
 #include <Arduino.h>
-#include <TFT_eSPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
 #include <lvgl.h>
 
 // Exported TFT instance (used by other modules for direct drawing during init)
-extern TFT_eSPI tft;
+extern Adafruit_ST7789 tft;
 
 /**
  * @brief Initialise TFT display, register LVGL display & input drivers.

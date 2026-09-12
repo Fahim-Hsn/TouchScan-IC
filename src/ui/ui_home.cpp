@@ -96,19 +96,23 @@ static void on_btn_settings(lv_event_t *e) {
 }
 
 // ─── Auto-detect polling ──────────────────────────────────────────────────
+static bool prev_ic_presence = false;
 static void auto_detect_poll(lv_timer_t *) {
     // Only poll if still on home screen
-    if (lv_scr_act() != scr_home) return;
+    if (lv_scr_act() != scr_home || !lbl_ic_status) return;
 
     extern bool zif_hal_detect_ic_presence(void);
-    if (zif_hal_detect_ic_presence()) {
-        // IC detected!
-        lv_label_set_text(lbl_ic_status, LV_SYMBOL_OK " IC DETECTED — Touch to Identify");
-        lv_obj_set_style_text_color(lbl_ic_status, CLR_SUCCESS, 0);
-        buzzer_hal_beep_detect();
-    } else {
-        lv_label_set_text(lbl_ic_status, "Insert IC into ZIF Socket");
-        lv_obj_set_style_text_color(lbl_ic_status, CLR_TEXT_DIM, 0);
+    bool present = zif_hal_detect_ic_presence();
+    if (present != prev_ic_presence) {
+        prev_ic_presence = present;
+        if (present) {
+            lv_label_set_text(lbl_ic_status, LV_SYMBOL_OK " IC DETECTED — Touch to Identify");
+            lv_obj_set_style_text_color(lbl_ic_status, CLR_SUCCESS, 0);
+            buzzer_hal_beep_detect();
+        } else {
+            lv_label_set_text(lbl_ic_status, "Insert IC into ZIF Socket");
+            lv_obj_set_style_text_color(lbl_ic_status, CLR_TEXT_DIM, 0);
+        }
     }
 }
 
@@ -123,8 +127,8 @@ static void battery_poll(lv_timer_t *) {
 
 // ─── Public API ───────────────────────────────────────────────────────────
 void ui_home_show(void) {
-    // Destroy old screen if any
-    lv_obj_t *old = lv_scr_act();
+    if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
+    if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
 
     scr_home = lv_obj_create(nullptr);
     theme_apply_screen(scr_home);
