@@ -22,6 +22,8 @@
 #include "ui_home.h"
 #include "ui_theme.h"
 #include "../engine/ic_database.h"
+#include "../hal/zif_hal.h"
+#include "../hal/buzzer_hal.h"
 #include "../config.h"
 #include <lvgl.h>
 #include <stdio.h>
@@ -46,9 +48,84 @@ static void on_ic_item_click(lv_event_t *e) {
     }
 }
 
+// ─── Warning popup ────────────────────────────────────────────────────────
+static lv_obj_t *warn_box = nullptr;
+
+static void close_warning(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (warn_box) {
+        lv_obj_del(warn_box);
+        warn_box = nullptr;
+    }
+}
+
+static void show_no_ic_warning(void) {
+    if (warn_box) return; // Already showing
+    
+    buzzer_hal_beep_bad();
+    
+    // Dark overlay
+    warn_box = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(warn_box, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    lv_obj_set_pos(warn_box, 0, 0);
+    lv_obj_set_style_bg_color(warn_box, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(warn_box, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(warn_box, 0, 0);
+    lv_obj_clear_flag(warn_box, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // Warning card
+    lv_obj_t *card = lv_obj_create(warn_box);
+    lv_obj_set_size(card, 260, 120);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(card, CLR_BG_PANEL, 0);
+    lv_obj_set_style_border_color(card, CLR_ERROR, 0);
+    lv_obj_set_style_border_width(card, 2, 0);
+    lv_obj_set_style_radius(card, 12, 0);
+    lv_obj_set_style_shadow_color(card, CLR_ERROR, 0);
+    lv_obj_set_style_shadow_width(card, 20, 0);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // Warning icon + text
+    lv_obj_t *lbl_warn = lv_label_create(card);
+    lv_label_set_text(lbl_warn, LV_SYMBOL_WARNING "  NO IC DETECTED!");
+    lv_obj_set_style_text_font(lbl_warn, FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(lbl_warn, CLR_ERROR, 0);
+    lv_obj_align(lbl_warn, LV_ALIGN_TOP_MID, 0, 10);
+    
+    lv_obj_t *lbl_msg = lv_label_create(card);
+    lv_label_set_text(lbl_msg, "Insert IC into ZIF socket\nbefore testing.");
+    lv_obj_set_style_text_font(lbl_msg, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_msg, CLR_TEXT_DIM, 0);
+    lv_obj_set_style_text_align(lbl_msg, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_msg, LV_ALIGN_CENTER, 0, 4);
+    
+    // OK button
+    lv_obj_t *btn_ok = lv_btn_create(card);
+    lv_obj_set_size(btn_ok, 80, 28);
+    lv_obj_align(btn_ok, LV_ALIGN_BOTTOM_MID, 0, -6);
+    theme_apply_btn(btn_ok);
+    lv_obj_set_style_border_color(btn_ok, CLR_NEON, 0);
+    lv_obj_add_event_cb(btn_ok, close_warning, LV_EVENT_ALL, nullptr);
+    lv_obj_t *lbl_ok = lv_label_create(btn_ok);
+    lv_label_set_text(lbl_ok, "OK");
+    lv_obj_set_style_text_font(lbl_ok, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_ok, CLR_NEON, 0);
+    lv_obj_align(lbl_ok, LV_ALIGN_CENTER, 0, 0);
+    
+    // Also close on tapping overlay background
+    lv_obj_add_event_cb(warn_box, close_warning, LV_EVENT_ALL, nullptr);
+}
+
 static void on_test_selected(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     if (!selected_ic) return;
+    
+    // Check if IC is actually inserted in ZIF socket
+    if (!zif_hal_detect_ic_presence()) {
+        show_no_ic_warning();
+        return;
+    }
+    
     ui_test_running_show(selected_ic, false);
 }
 
