@@ -66,8 +66,9 @@ static void poll_test_complete(lv_timer_t *) {
         lv_label_set_text(lbl_gate_info, buf);
     }
 
-    // Check if test is complete
-    if (test_done) {
+    // Check if test is complete. We MUST wait at least 300ms for the 
+    // lv_scr_load_anim (250ms) to finish, otherwise LVGL crashes due to overlapping transitions.
+    if (test_done && (millis() - t_start_ms > 300)) {
         lv_timer_del(t_poll);
         t_poll = nullptr;
         // Navigate to result screen
