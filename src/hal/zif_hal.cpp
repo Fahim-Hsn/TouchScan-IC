@@ -78,39 +78,70 @@ bool zif_hal_read(uint8_t zif_pin) {
 }
 
 bool zif_hal_detect_ic_presence(void) {
-    // Heuristic: apply VCC to pin 14 and GND to pin 7 (standard 14-pin TTL).
-    // If an IC is present, the VCC rail will have a small load pulling it slightly
-    // below 3.3V, detectable via analogRead on the VCC pin in some setups.
+    // Reliable detection: Power up the IC, then check if output pins
+    // are being actively driven (stable readings) vs floating (random/unstable).
     //
-    // Simpler heuristic used here:
-    //   1. Set all non-power pins as INPUT_PULLUP
-    //   2. Drive VCC=pin14, GND=pin7
-    //   3. If any of the "output" pins of a known IC read LOW despite PULLUP,
-    //      it means the IC is driving them — IC is present.
-    //
-    // For simplicity in v1: check if pin 14 to GND resistance is low enough
-    // to indicate a connected IC by reading pin 7 after driving pin 14 HIGH.
-    // If pin 7 is LOW when driven LOW (GND), that's an IC path.
+    // Method:
+    //   1. Drive VCC and GND pins to power the IC
+    //   2. Set all input pins to a known state (LOW)
+    //   3. Read output pins multiple times with alternating pullup/pulldown
+    //   4. If an IC is present, output pins will be actively driven to a 
+    //      consistent level. If no IC, pins will follow the pull direction (float).
 
-    // Quick check: try to detect resistance path between pin 14 (VCC) and pin 7 (GND)
-    // This is just a presence check, not a type-detection.
-
-    // Save state
     zif_hal_release_all();
 
-    // Drive pin 14 HIGH (would be VCC), pin 7 LOW (would be GND)
+    // Power up: try both 14-pin (VCC=14, GND=7) and 16-pin (VCC=16, GND=8)
+    // Drive pin 14 HIGH (VCC for 14-pin ICs)
     pinMode(zif_to_gpio(14), OUTPUT);
     digitalWrite(zif_to_gpio(14), HIGH);
-    pinMode(zif_to_gpio(7), INPUT_PULLUP);
-    delayMicroseconds(100);
+    // Drive pin 7 LOW (GND for 14-pin ICs)
+    pinMode(zif_to_gpio(7), OUTPUT);
+    digitalWrite(zif_to_gpio(7), LOW);
+    // Also drive 16-pin power rails
+    pinMode(zif_to_gpio(16), OUTPUT);
+    digitalWrite(zif_to_gpio(16), HIGH);
+    pinMode(zif_to_gpio(8), OUTPUT);
+    digitalWrite(zif_to_gpio(8), LOW);
 
-    // If an IC is present and its VCC-GND path has the expected impedance,
-    // pin 7 will be pulled towards LOW more than an open pin would
-    bool level_pin7 = (digitalRead(zif_to_gpio(7)) == HIGH);
+    // Set some common input pins LOW (pins 1, 2, 4, 5 are inputs on most 74xx)
+    uint8_t input_pins[] = {1, 2, 4, 5, 9, 10, 12, 13};
+    for (uint8_t p : input_pins) {
+        pinMode(zif_to_gpio(p), OUTPUT);
+        digitalWrite(zif_to_gpio(p), LOW);
+    }
+
+    delay(2); // Let the IC settle
+
+    // Check common output pins (pin 3, 6, 8, 11 are outputs on most 74xx ICs)
+    // If IC is present, these will be actively driven and won't follow pullup/pulldown
+    uint8_t test_pins[] = {3, 6, 11};
+    uint8_t detected_count = 0;
+
+    for (uint8_t p : test_pins) {
+        uint8_t gpio = zif_to_gpio(p);
+        
+        // Read with PULLUP
+        pinMode(gpio, INPUT_PULLUP);
+        delayMicroseconds(50);
+        bool val_pullup = digitalRead(gpio);
+
+        // Read with PULLDOWN
+        pinMode(gpio, INPUT_PULLDOWN);
+        delayMicroseconds(50);
+        bool val_pulldown = digitalRead(gpio);
+
+        // If IC is driving the pin, both reads should give the SAME value
+        // (the IC overrides the weak pull resistor).
+        // If no IC (floating), pullup gives HIGH and pulldown gives LOW.
+        if (val_pullup == val_pulldown) {
+            detected_count++;
+        }
+    }
 
     // Restore safe state
     zif_hal_release_all();
 
-    // If pin7 is being pulled LOW (not floating HIGH with PULLUP), IC detected
-    return !level_pin7;
+    // If at least 2 out of 3 pins show active drive, IC is present
+    return (detected_count >= 2);
 }
+
