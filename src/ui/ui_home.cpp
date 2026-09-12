@@ -88,10 +88,14 @@ static void on_btn_ic_select(lv_event_t *e) {
 }
 static void on_btn_history(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
+    if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
     ui_history_show();
 }
 static void on_btn_settings(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
+    if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
     ui_settings_show();
 }
 

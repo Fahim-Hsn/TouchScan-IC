@@ -25,7 +25,7 @@ Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
 XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
 
 // ─── LVGL Draw Buffers (allocated in SRAM) ────────────────────────────────
-static lv_color_t fb_buf[DISPLAY_WIDTH * 30]; // 30 lines buffer (faster flushes)
+static lv_color_t fb_buf[DISPLAY_WIDTH * 60]; // 60 lines buffer (faster flushes, better FPS)
 static lv_disp_draw_buf_t disp_draw_buf;
 static lv_disp_drv_t      disp_drv;
 static lv_indev_drv_t     indev_drv;
@@ -103,7 +103,7 @@ void tft_hal_init(void) {
     tft_hal_set_brightness(90);
 
     // --- Register LVGL display driver ---
-    lv_disp_draw_buf_init(&disp_draw_buf, fb_buf, nullptr, DISPLAY_WIDTH * 30);
+    lv_disp_draw_buf_init(&disp_draw_buf, fb_buf, nullptr, DISPLAY_WIDTH * 60);
     
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res    = DISPLAY_WIDTH;
