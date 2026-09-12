@@ -35,17 +35,22 @@ An advanced, feature-rich Digital Logic IC Tester firmware built for the **ESP32
 ## 🔌 Connection Diagram
 
 ### 1. TFT Display & Touch (SPI Bus)
-| TFT/Touch Pin | ESP32-S3 GPIO | Note |
+| Display Pin Label | ESP32-S3 GPIO | Note |
 | :--- | :--- | :--- |
-| **MOSI (SDI)** | GPIO 11 | SPI2 |
-| **MISO (SDO)** | GPIO 13 | SPI2 (Touch read) |
-| **SCK (CLK)** | GPIO 12 | SPI2 |
-| **TFT CS** | GPIO 10 | |
-| **TFT DC (RS)** | GPIO 9 | |
-| **TFT RST** | GPIO 8 | |
-| **TFT BL (LED)**| GPIO 38 | LEDC PWM (Ch 1) |
-| **Touch CS** | GPIO 7 | XPT2046 |
-| **Touch IRQ** | GPIO 6 | *(Optional)* |
+| **VCC** | 3.3V | Power (3.3V) |
+| **GND** | GND | Ground |
+| **CS** | GPIO 10 | TFT Chip Select |
+| **RESET** | GPIO 8 | TFT Reset |
+| **DC** | GPIO 9 | TFT Data/Command |
+| **SDI(MOSI)** | GPIO 11 | SPI MOSI |
+| **SCK** | GPIO 12 | SPI Clock |
+| **LED** | GPIO 38 | TFT Backlight (LEDC PWM Ch 1) |
+| **SDO(MISO)** | GPIO 13 | SPI MISO |
+| **T_CLK** | GPIO 12 | Touch Clock (Connect to SCK) |
+| **T_CS** | GPIO 7 | Touch Chip Select |
+| **T_DIN** | GPIO 11 | Touch Data In (Connect to MOSI) |
+| **T_DO** | GPIO 13 | Touch Data Out (Connect to MISO) |
+| **T_IRQ** | GPIO 6 | Touch Interrupt |
 
 ### 2. 16-pin ZIF Socket
 > **Hardware Note:** VCC pins (14, 16) are driven directly from the ESP32 GPIO (3.3V). For commercial production, it is highly recommended to use a P-channel MOSFET to switch the 3.3V rail instead of driving it directly from the MCU pins to prevent overcurrent damage.
