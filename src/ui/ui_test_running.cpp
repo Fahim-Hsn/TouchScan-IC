@@ -1,5 +1,5 @@
 /**
- * ui_test_running.cpp — Animated Test-In-Progress Screen
+ * ui_test_running.cpp — Animated Test-In-Progress Screen (Deep Forest Emerald & Mint Theme)
  *
  * Shows:
  *   - IC name in header
@@ -7,9 +7,6 @@
  *   - Gate status: "Testing Gate X / N..."
  *   - Truth table rows populating in real-time
  *   - Test duration counter
- *
- * Note: The actual IC test runs in a FreeRTOS task so the LVGL
- *       main loop (lv_task_handler) keeps rendering animations.
  */
 #include "ui_test_running.h"
 #include "ui_result.h"
@@ -32,12 +29,11 @@ static volatile uint8_t      total_gates     = 0;
 static lv_obj_t *scr_test       = nullptr;
 static lv_obj_t *lbl_gate_info  = nullptr;
 static lv_obj_t *lbl_timer      = nullptr;
-static lv_obj_t *tbl_tt         = nullptr;  // Truth table widget
+static lv_obj_t *tbl_tt         = nullptr;
 static lv_timer_t *t_poll       = nullptr;
 static uint32_t   t_start_ms    = 0;
 
-// ─── Progress callback (called from FreeRTOS task!) ──────────────────────
-// IMPORTANT: This runs in a non-LVGL task — only update volatile state.
+// ─── Progress callback ───────────────────────────────────────────────────
 static void on_test_progress(uint8_t gate_idx, uint8_t total) {
     current_gate = gate_idx;
     total_gates  = total;
@@ -50,30 +46,24 @@ static void test_task(void *param) {
     vTaskDelete(nullptr);
 }
 
-// ─── LVGL poll timer (checks if test is done) ────────────────────────────
+// ─── LVGL poll timer ──────────────────────────────────────────────────────
 static void poll_test_complete(lv_timer_t *) {
-    // Update the elapsed time display
     if (lbl_timer) {
         char buf[24];
         snprintf(buf, sizeof(buf), "%lums", millis() - t_start_ms);
         lv_label_set_text(lbl_timer, buf);
     }
 
-    // Update gate status
     if (lbl_gate_info && total_gates > 0) {
         char buf[40];
         snprintf(buf, sizeof(buf), "Testing Gate %d / %d", current_gate, total_gates);
         lv_label_set_text(lbl_gate_info, buf);
     }
 
-    // Check if test is complete. We MUST wait at least 500ms for the 
-    // lv_scr_load_anim (250ms) and all UI objects to finish, otherwise LVGL crashes.
     if (test_done && (millis() - t_start_ms > 500)) {
         lv_timer_del(t_poll);
         t_poll = nullptr;
-        // Small yield to let LVGL flush any pending draw operations
         vTaskDelay(pdMS_TO_TICKS(50));
-        // Navigate to result screen
         ui_result_show(&test_result);
     }
 }
@@ -90,66 +80,81 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     scr_test = lv_obj_create(nullptr);
     theme_apply_screen(scr_test);
 
-    // Skip background grid to save LVGL objects and prevent memory pressure
-
     // ── Header ──────────────────────────────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr_test);
-    lv_obj_set_size(hdr, DISPLAY_WIDTH, 30);
-    lv_obj_set_pos(hdr, 0, 0);
-    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0);
-    lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_color(hdr, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(hdr, 1, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(hdr, 4, 0);
+    lv_obj_set_size(hdr, DISPLAY_WIDTH, 40);
+    lv_obj_align(hdr, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_bg_opa(hdr, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(hdr, 0, 0);
+    lv_obj_set_style_pad_all(hdr, 0, 0);
     lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
 
-    // IC name in header
+    // IC name in header (White)
     char hdr_text[32];
     snprintf(hdr_text, sizeof(hdr_text), "TESTING  %s", ic->ic_number);
     lv_obj_t *lbl_hdr = lv_label_create(hdr);
     lv_label_set_text(lbl_hdr, hdr_text);
-    lv_obj_set_style_text_font(lbl_hdr, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_hdr, CLR_NEON, 0);
-    lv_obj_set_style_text_letter_space(lbl_hdr, 1, 0);
-    lv_obj_align(lbl_hdr, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(lbl_hdr, FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(lbl_hdr, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_hdr, LV_ALIGN_LEFT_MID, 16, 0);
 
-    // Timer label (right)
-    lbl_timer = lv_label_create(hdr);
+    // Timer badge in Mint (Right)
+    lv_obj_t *badge_t = lv_obj_create(hdr);
+    lv_obj_set_size(badge_t, 70, 26);
+    lv_obj_align(badge_t, LV_ALIGN_RIGHT_MID, -12, 0);
+    lv_obj_set_style_bg_color(badge_t, CLR_BG_PANEL, 0);
+    lv_obj_set_style_bg_opa(badge_t, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(badge_t, CLR_BLUE_DIM, 0);
+    lv_obj_set_style_border_width(badge_t, 1, 0);
+    lv_obj_set_style_radius(badge_t, 13, 0);
+    lv_obj_set_style_pad_all(badge_t, 0, 0);
+    lv_obj_clear_flag(badge_t, LV_OBJ_FLAG_SCROLLABLE);
+
+    lbl_timer = lv_label_create(badge_t);
     lv_label_set_text(lbl_timer, "0ms");
     lv_obj_set_style_text_font(lbl_timer, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_timer, CLR_TEXT_LABEL, 0);
-    lv_obj_align(lbl_timer, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_set_style_text_color(lbl_timer, CLR_TEXT, 0);
+    lv_obj_align(lbl_timer, LV_ALIGN_CENTER, 0, 0);
 
-    // ── Centre area ──────────────────────────────────────────────────────
-    // Left: Spinner + gate info
-    lv_obj_t *spin = lv_spinner_create(scr_test, 1500, 60);
-    lv_obj_set_size(spin, 70, 70);
-    lv_obj_align(spin, LV_ALIGN_LEFT_MID, 20, -10);
-    lv_obj_set_style_arc_color(spin, CLR_NEON, LV_PART_INDICATOR);
+    // ── Left Card: Spinner + gate info (Mint Floating Card) ──────────────
+    lv_obj_t *card_left = lv_obj_create(scr_test);
+    lv_obj_set_size(card_left, 120, 188);
+    lv_obj_align(card_left, LV_ALIGN_TOP_LEFT, 12, 42);
+    theme_apply_panel(card_left);
+    lv_obj_clear_flag(card_left, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *spin = lv_spinner_create(card_left, 1500, 60);
+    lv_obj_set_size(spin, 60, 60);
+    lv_obj_align(spin, LV_ALIGN_TOP_MID, 0, 14);
+    lv_obj_set_style_arc_color(spin, CLR_BG_DARK, LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(spin, 4, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(spin, CLR_BG_PANEL, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(spin, CLR_BLUE_DIM, LV_PART_MAIN);
     lv_obj_set_style_arc_width(spin, 4, LV_PART_MAIN);
 
     // Gate info label
-    lbl_gate_info = lv_label_create(scr_test);
+    lbl_gate_info = lv_label_create(card_left);
     lv_label_set_text(lbl_gate_info, "Starting test...");
     lv_obj_set_style_text_font(lbl_gate_info, FONT_SMALL, 0);
     lv_obj_set_style_text_color(lbl_gate_info, CLR_TEXT, 0);
     lv_obj_set_style_text_align(lbl_gate_info, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(lbl_gate_info, 110);
-    lv_obj_align(lbl_gate_info, LV_ALIGN_LEFT_MID, 8, 36);
+    lv_obj_set_width(lbl_gate_info, 100);
+    lv_obj_align(lbl_gate_info, LV_ALIGN_BOTTOM_MID, 0, -10);
 
-    // Right: Truth table (populates during test)
-    tbl_tt = lv_table_create(scr_test);
-    lv_obj_set_size(tbl_tt, 160, DISPLAY_HEIGHT - 40);
-    lv_obj_align(tbl_tt, LV_ALIGN_RIGHT_MID, -4, 8);
+    // ── Right Card: Truth table (Mint Floating Card) ─────────────────────
+    lv_obj_t *card_right = lv_obj_create(scr_test);
+    lv_obj_set_size(card_right, 168, 188);
+    lv_obj_align(card_right, LV_ALIGN_TOP_RIGHT, -12, 42);
+    theme_apply_panel(card_right);
+    lv_obj_set_style_pad_all(card_right, 4, 0);
+
+    tbl_tt = lv_table_create(card_right);
+    lv_obj_set_size(tbl_tt, LV_PCT(100), LV_PCT(100));
+    lv_obj_align(tbl_tt, LV_ALIGN_CENTER, 0, 0);
     lv_table_set_col_cnt(tbl_tt, 4);
-    lv_table_set_col_width(tbl_tt, 0, 30);
-    lv_table_set_col_width(tbl_tt, 1, 30);
-    lv_table_set_col_width(tbl_tt, 2, 40);
-    lv_table_set_col_width(tbl_tt, 3, 40);
+    lv_table_set_col_width(tbl_tt, 0, 36);
+    lv_table_set_col_width(tbl_tt, 1, 36);
+    lv_table_set_col_width(tbl_tt, 2, 42);
+    lv_table_set_col_width(tbl_tt, 3, 42);
 
     // Header row
     lv_table_set_cell_value(tbl_tt, 0, 0, "A");
@@ -173,13 +178,12 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     xTaskCreatePinnedToCore(
         test_task,
         "ICTest",
-        8192,   // Stack size (8KB — enough for GPIO operations + test logic)
+        8192,
         nullptr,
-        5,      // High priority
+        5,
         nullptr,
-        0       // Pin to Core 0 (PRO_CPU) so it doesn't block LVGL on Core 1
+        0
     );
 
-    // ── Poll timer to update UI and check completion ──────────────────────
-    t_poll = lv_timer_create(poll_test_complete, 50, nullptr);  // 50ms = 20fps update
+    t_poll = lv_timer_create(poll_test_complete, 50, nullptr);
 }
