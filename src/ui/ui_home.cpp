@@ -12,7 +12,7 @@
  * │ │        [ ▶ START TEST ]            │ │
  * │ └────────────────────────────────────┘ │
  * ├────────────────────────────────────────┤
- * │  [ 🔍 SELECT ] [ 📋 HISTORY ] [ ⚙ CONFIG ]  h=52 (Mint Floating Nav Pill)
+ * │  [ 🔍 SELECT ] [ ⚡ AUTO ] [ ⚙ CONFIG ] │ h=52 (Mint Floating Nav Pill)
  * └────────────────────────────────────────┘
  */
 #include "ui_home.h"
@@ -39,10 +39,11 @@ static lv_obj_t *lbl_badge_txt   = nullptr;
 static lv_obj_t *ring_pulse      = nullptr;
 static lv_timer_t *t_autodetect  = nullptr;
 static lv_timer_t *t_battery     = nullptr;
+static lv_obj_t *warn_modal      = nullptr;
 
 // ─── Forward declarations ─────────────────────────────────────────────────
 static void on_btn_ic_select(lv_event_t *e);
-static void on_btn_history(lv_event_t *e);
+static void on_btn_auto_test(lv_event_t *e);
 static void on_btn_settings(lv_event_t *e);
 static void on_btn_start_test(lv_event_t *e);
 static void auto_detect_poll(lv_timer_t *t);
@@ -66,7 +67,7 @@ static void update_batt_label(uint8_t pct) {
     } else if (pct <= 30) {
         lv_obj_set_style_text_color(lbl_batt, CLR_WARNING, 0);
     } else {
-        lv_obj_set_style_text_color(lbl_batt, CLR_TEXT, 0); // Deep Forest Green
+        lv_obj_set_style_text_color(lbl_batt, CLR_TEXT, 0);
     }
 }
 
@@ -90,6 +91,62 @@ static void start_pulse_anim(lv_obj_t *obj) {
     lv_anim_start(&a);
 }
 
+// ─── Modal Popup helper ───────────────────────────────────────────────────
+static void close_modal(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (warn_modal) {
+        lv_obj_del(warn_modal);
+        warn_modal = nullptr;
+    }
+}
+
+static void show_modal(const char *title, const char *msg, bool is_error) {
+    if (warn_modal) return;
+    
+    warn_modal = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(warn_modal, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    lv_obj_set_pos(warn_modal, 0, 0);
+    lv_obj_set_style_bg_color(warn_modal, lv_color_hex(0x022C22), 0);
+    lv_obj_set_style_bg_opa(warn_modal, LV_OPA_70, 0);
+    lv_obj_set_style_border_width(warn_modal, 0, 0);
+    lv_obj_clear_flag(warn_modal, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t *card = lv_obj_create(warn_modal);
+    lv_obj_set_size(card, 264, 130);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, 0);
+    theme_apply_panel(card);
+    lv_obj_set_style_border_color(card, is_error ? CLR_ERROR : CLR_WARNING, 0);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_t *lbl_t = lv_label_create(card);
+    lv_label_set_text(lbl_t, title);
+    lv_obj_set_style_text_font(lbl_t, FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(lbl_t, is_error ? CLR_ERROR : CLR_WARNING, 0);
+    lv_obj_align(lbl_t, LV_ALIGN_TOP_MID, 0, 4);
+    
+    lv_obj_t *lbl_m = lv_label_create(card);
+    lv_label_set_text(lbl_m, msg);
+    lv_obj_set_style_text_font(lbl_m, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_m, CLR_TEXT_DIM, 0);
+    lv_obj_set_style_text_align(lbl_m, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_m, LV_ALIGN_CENTER, 0, 4);
+    
+    lv_obj_t *btn_ok = lv_btn_create(card);
+    lv_obj_set_size(btn_ok, 90, 30);
+    lv_obj_align(btn_ok, LV_ALIGN_BOTTOM_MID, 0, -4);
+    theme_apply_btn(btn_ok);
+    lv_obj_add_event_cb(btn_ok, close_modal, LV_EVENT_ALL, nullptr);
+    
+    lv_obj_t *lbl_ok = lv_label_create(btn_ok);
+    lv_label_set_text(lbl_ok, "OK");
+    lv_obj_set_style_text_font(lbl_ok, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_ok, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_ok, LV_ALIGN_CENTER, 0, 0);
+    
+    lv_obj_add_event_cb(warn_modal, close_modal, LV_EVENT_ALL, nullptr);
+}
+
 // ─── Button callbacks ─────────────────────────────────────────────────────
 static void on_btn_ic_select(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
@@ -98,11 +155,28 @@ static void on_btn_ic_select(lv_event_t *e) {
     ui_ic_select_show();
 }
 
-static void on_btn_history(lv_event_t *e) {
+static void on_btn_auto_test(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-    if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
-    if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
-    ui_history_show();
+    
+    if (!zif_hal_detect_ic_presence()) {
+        buzzer_hal_beep_bad();
+        show_modal(LV_SYMBOL_WARNING "  NO IC DETECTED", "Please insert IC into ZIF socket\nbefore auto-testing.", true);
+        return;
+    }
+    
+    // Attempt auto-detection
+    uint8_t confidence = 0;
+    const ICDescriptor *detected = auto_detect_ic(&confidence);
+    
+    if (detected) {
+        buzzer_hal_beep_detect();
+        if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
+        if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
+        ui_test_running_show(detected, true);
+    } else {
+        buzzer_hal_beep_bad();
+        show_modal(LV_SYMBOL_WARNING "  UNKNOWN IC", "Could not identify IC pinout.\nTry selecting manually from list.", false);
+    }
 }
 
 static void on_btn_settings(lv_event_t *e) {
@@ -188,7 +262,7 @@ void ui_home_show(void) {
     lv_obj_t *lbl_title = lv_label_create(header_area);
     lv_label_set_text(lbl_title, LV_SYMBOL_CHARGE " IC CHECKER");
     lv_obj_set_style_text_font(lbl_title, FONT_MEDIUM, 0);
-    lv_obj_set_style_text_color(lbl_title, lv_color_hex(0xFFFFFF), 0); // Pure White on Forest BG
+    lv_obj_set_style_text_color(lbl_title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_title, LV_ALIGN_LEFT_MID, 14, 0);
 
     // Battery pill badge in Mint (Right)
@@ -268,7 +342,7 @@ void ui_home_show(void) {
     lv_obj_set_style_text_align(lbl_ic_status, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(lbl_ic_status, LV_ALIGN_BOTTOM_MID, 0, -4);
 
-    // ── BOTTOM FLOATING NAVIGATION PILL (Mint Card) ───────────────────────────
+    // ── BOTTOM FLOATING NAVIGATION PILL (SELECT | AUTO | CONFIG) ─────────────
     lv_obj_t *nav = lv_obj_create(scr_home);
     lv_obj_set_size(nav, 296, 54);
     lv_obj_align(nav, LV_ALIGN_BOTTOM_MID, 0, -10);
@@ -280,19 +354,19 @@ void ui_home_show(void) {
     lv_obj_set_flex_align(nav, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     // Helper to create clean nav tab button with icon + short text
-    auto make_nav_tab = [&](const char *icon, const char *label_text, lv_event_cb_t cb) {
+    auto make_nav_tab = [&](const char *icon, const char *label_text, lv_event_cb_t cb, bool is_primary) {
         lv_obj_t *btn = lv_btn_create(nav);
         lv_obj_set_size(btn, 86, 42);
-        lv_obj_set_style_bg_color(btn, CLR_BLUE_GLOW, 0);
+        lv_obj_set_style_bg_color(btn, is_primary ? CLR_BG_DARK : CLR_BLUE_GLOW, 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_color(btn, CLR_BLUE_DIM, 0);
+        lv_obj_set_style_border_color(btn, is_primary ? CLR_NEON : CLR_BLUE_DIM, 0);
         lv_obj_set_style_border_width(btn, 1, 0);
         lv_obj_set_style_radius(btn, 8, 0);
         lv_obj_set_style_pad_all(btn, 2, 0);
         lv_obj_set_style_shadow_opa(btn, LV_OPA_TRANSP, 0);
 
         // Pressed state
-        lv_obj_set_style_bg_color(btn, CLR_BG_DARK, LV_STATE_PRESSED);
+        lv_obj_set_style_bg_color(btn, is_primary ? CLR_CYAN : CLR_BG_DARK, LV_STATE_PRESSED);
         lv_obj_add_event_cb(btn, cb, LV_EVENT_ALL, nullptr);
 
         lv_obj_t *cont_btn = lv_obj_create(btn);
@@ -305,21 +379,21 @@ void ui_home_show(void) {
         lv_obj_t *ico = lv_label_create(cont_btn);
         lv_label_set_text(ico, icon);
         lv_obj_set_style_text_font(ico, FONT_SMALL, 0);
-        lv_obj_set_style_text_color(ico, CLR_BG_DARK, 0);
+        lv_obj_set_style_text_color(ico, is_primary ? lv_color_hex(0xFFFFFF) : CLR_BG_DARK, 0);
         lv_obj_align(ico, LV_ALIGN_TOP_MID, 0, 2);
 
         lv_obj_t *txt = lv_label_create(cont_btn);
         lv_label_set_text(txt, label_text);
         lv_obj_set_style_text_font(txt, FONT_TINY, 0);
-        lv_obj_set_style_text_color(txt, CLR_TEXT, 0);
+        lv_obj_set_style_text_color(txt, is_primary ? lv_color_hex(0xFFFFFF) : CLR_TEXT, 0);
         lv_obj_align(txt, LV_ALIGN_BOTTOM_MID, 0, -2);
 
         return btn;
     };
 
-    make_nav_tab(LV_SYMBOL_LIST, "SELECT", on_btn_ic_select);
-    make_nav_tab(LV_SYMBOL_REFRESH, "HISTORY", on_btn_history);
-    make_nav_tab(LV_SYMBOL_SETTINGS, "CONFIG", on_btn_settings);
+    make_nav_tab(LV_SYMBOL_LIST, "SELECT", on_btn_ic_select, false);
+    make_nav_tab(LV_SYMBOL_PLAY, "AUTO", on_btn_auto_test, true);    // Highlighted AUTO test button
+    make_nav_tab(LV_SYMBOL_SETTINGS, "CONFIG", on_btn_settings, false);
 
     // ── Load screen ──────────────────────────────────────────────────
     lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);

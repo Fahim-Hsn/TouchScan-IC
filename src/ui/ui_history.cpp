@@ -3,6 +3,7 @@
  * Reads history from NVS (Preferences) and shows a scrollable list.
  */
 #include "ui_history.h"
+#include "ui_settings.h"
 #include "ui_home.h"
 #include "ui_theme.h"
 #include "../config.h"
@@ -12,7 +13,7 @@
 
 static void on_back(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
-    ui_home_show();
+    ui_settings_show(); // Return to settings
 }
 
 static void on_clear_history(lv_event_t *e) {

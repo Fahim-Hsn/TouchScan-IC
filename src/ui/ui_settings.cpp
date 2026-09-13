@@ -1,9 +1,10 @@
 /**
  * ui_settings.cpp — Settings Screen (Deep Forest Emerald & Mint Theme)
- * Controls: Buzzer on/off, Brightness slider, Language, Touch Calibration, About
+ * Controls: Buzzer on/off, Brightness slider, Test History, Language, Touch Calibration, About
  */
 #include "ui_settings.h"
 #include "ui_home.h"
+#include "ui_history.h"
 #include "ui_theme.h"
 #include "../hal/tft_hal.h"
 #include "../hal/buzzer_hal.h"
@@ -54,6 +55,12 @@ static void on_brightness_changed(lv_event_t *e) {
     tft_hal_set_brightness(brightness);
 }
 
+static void on_view_history(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    save_settings();
+    ui_history_show();
+}
+
 static void on_calibrate_touch(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     save_settings();
@@ -100,7 +107,7 @@ void ui_settings_show(void) {
     lv_obj_set_size(cont, 296, 188);
     lv_obj_align(cont, LV_ALIGN_TOP_MID, 0, 42);
     theme_apply_panel(cont);
-    lv_obj_set_style_pad_row(cont, 8, 0);
+    lv_obj_set_style_pad_row(cont, 6, 0);
     lv_obj_set_style_pad_all(cont, 6, 0);
     lv_obj_set_layout(cont, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
@@ -108,7 +115,7 @@ void ui_settings_show(void) {
     // Helper to make a setting row
     auto make_row = [&](const char *icon, const char *label_text) -> lv_obj_t * {
         lv_obj_t *row = lv_obj_create(cont);
-        lv_obj_set_size(row, LV_PCT(100), 36);
+        lv_obj_set_size(row, LV_PCT(100), 34);
         lv_obj_set_style_bg_color(row, CLR_BLUE_GLOW, 0);
         lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
         lv_obj_set_style_border_color(row, CLR_BLUE_DIM, 0);
@@ -131,8 +138,22 @@ void ui_settings_show(void) {
         return row;
     };
 
-    // ── Row 1: Buzzer ──────────────────────────────────────────────────────
-    lv_obj_t *row_buz = make_row(LV_SYMBOL_AUDIO, "Buzzer Sounds");
+    // ── Row 1: Test History ────────────────────────────────────────────────
+    lv_obj_t *row_hist = make_row(LV_SYMBOL_LIST, "Test Records");
+    lv_obj_t *btn_hist = lv_btn_create(row_hist);
+    lv_obj_set_size(btn_hist, 64, 24);
+    lv_obj_align(btn_hist, LV_ALIGN_RIGHT_MID, -2, 0);
+    theme_apply_btn(btn_hist);
+    lv_obj_add_event_cb(btn_hist, on_view_history, LV_EVENT_ALL, nullptr);
+    
+    lv_obj_t *lbl_h = lv_label_create(btn_hist);
+    lv_label_set_text(lbl_h, "VIEW");
+    lv_obj_set_style_text_font(lbl_h, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_h, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_h, LV_ALIGN_CENTER, 0, 0);
+
+    // ── Row 2: Buzzer ──────────────────────────────────────────────────────
+    lv_obj_t *row_buz = make_row(LV_SYMBOL_AUDIO, "Buzzer Sound");
     lv_obj_t *sw_buz  = lv_switch_create(row_buz);
     lv_obj_align(sw_buz, LV_ALIGN_RIGHT_MID, -2, 0);
     if (buzzer_enabled) lv_obj_add_state(sw_buz, LV_STATE_CHECKED);
@@ -140,10 +161,10 @@ void ui_settings_show(void) {
     lv_obj_set_style_bg_color(sw_buz, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
     lv_obj_add_event_cb(sw_buz, on_buzzer_toggle, LV_EVENT_ALL, nullptr);
 
-    // ── Row 2: Brightness ─────────────────────────────────────────────────
+    // ── Row 3: Brightness ─────────────────────────────────────────────────
     lv_obj_t *row_bri = make_row(LV_SYMBOL_IMAGE, "Brightness");
     lv_obj_t *slider  = lv_slider_create(row_bri);
-    lv_obj_set_size(slider, 100, 10);
+    lv_obj_set_size(slider, 90, 8);
     lv_obj_align(slider, LV_ALIGN_RIGHT_MID, -4, 0);
     lv_slider_set_range(slider, 20, 100);
     lv_slider_set_value(slider, brightness, LV_ANIM_OFF);
@@ -152,10 +173,10 @@ void ui_settings_show(void) {
     lv_obj_set_style_bg_color(slider, CLR_BLUE_DIM, LV_PART_MAIN);
     lv_obj_add_event_cb(slider, on_brightness_changed, LV_EVENT_ALL, nullptr);
 
-    // ── Row 3: Touch Calibration ──────────────────────────────────────────
+    // ── Row 4: Touch Calibration ──────────────────────────────────────────
     lv_obj_t *row_cal = make_row(LV_SYMBOL_SETTINGS, "Touch Calibrate");
     lv_obj_t *btn_cal = lv_btn_create(row_cal);
-    lv_obj_set_size(btn_cal, 78, 26);
+    lv_obj_set_size(btn_cal, 72, 24);
     lv_obj_align(btn_cal, LV_ALIGN_RIGHT_MID, -2, 0);
     theme_apply_btn_secondary(btn_cal);
     lv_obj_add_event_cb(btn_cal, on_calibrate_touch, LV_EVENT_ALL, nullptr);
