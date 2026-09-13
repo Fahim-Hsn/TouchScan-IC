@@ -7,17 +7,18 @@
  * ├──────────────────────────────────────────┤
  * │ ┌──────────────────────────────────────┐ │
  * │ │  1 · [   74HC08   ] · 14             │ │
- * │ │  2 · [ G1:✓  G2:✓ ] · 13             │ │  Mint Visualization Card (h=144)
+ * │ │  2 · [ G1:✓  G2:✗ ] · 13             │ │  Faulty gate pins blink RED
  * │ │  3 · [ G3:✓  G4:✓ ] · 12             │ │
- * │ │     [ ✓ ALL 4 GATES PASSED ]         │ │
+ * │ │     [ ⚠ GOOD: 3 | FAULTY: 1 ]        │ │
  * │ └──────────────────────────────────────┘ │
  * ├──────────────────────────────────────────┤
- * │    [ 🏠 HOME ]      [ 💾 SAVE HISTORY ]  │  Bottom Action Buttons (h=38)
+ * │  [ 🏠 HOME ]  [ ↺ RETEST ]  [ 💾 SAVE ]  │  Bottom Action Buttons (h=36)
  * └──────────────────────────────────────────┘
  */
 #include "ui_result.h"
 #include "ui_home.h"
 #include "ui_history.h"
+#include "ui_test_running.h"
 #include "ui_theme.h"
 #include "../hal/buzzer_hal.h"
 #include "../config.h"
@@ -71,18 +72,18 @@ static void save_to_history(const ICTestResult *r) {
 static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     const ICDescriptor *ic = r->ic;
     
-    // Floating Mint Card
+    // Floating Mint Card (h=142)
     lv_obj_t *ic_area = lv_obj_create(parent);
     lv_obj_set_size(ic_area, 296, 142);
     lv_obj_align(ic_area, LV_ALIGN_TOP_MID, 0, 42);
     theme_apply_panel(ic_area);
     lv_obj_clear_flag(ic_area, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Physical IC Body (Dark Charcoal finish for realistic chip)
+    // Physical IC Body (86x86px, compact, clean)
     lv_obj_t *body = lv_obj_create(ic_area);
-    lv_obj_set_size(body, 86, 102);
-    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 6);
-    lv_obj_set_style_bg_color(body, lv_color_hex(0x022C22), 0); // Deepest Forest Black IC Body
+    lv_obj_set_size(body, 86, 86);
+    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 4);
+    lv_obj_set_style_bg_color(body, lv_color_hex(0x022C22), 0);
     lv_obj_set_style_bg_opa(body, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(body, r->overall_pass ? CLR_NEON : CLR_ERROR, 0);
     lv_obj_set_style_border_width(body, 1, 0);
@@ -92,8 +93,8 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
 
     // IC Notch (Top center)
     lv_obj_t *notch = lv_obj_create(body);
-    lv_obj_set_size(notch, 16, 16);
-    lv_obj_align(notch, LV_ALIGN_TOP_MID, 0, -10);
+    lv_obj_set_size(notch, 14, 14);
+    lv_obj_align(notch, LV_ALIGN_TOP_MID, 0, -9);
     lv_obj_set_style_radius(notch, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(notch, CLR_BG_PANEL, 0);
     lv_obj_set_style_border_color(notch, CLR_BLUE_DIM, 0);
@@ -119,7 +120,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     lv_obj_set_style_text_font(lbl_ic, FONT_TINY, 0);
     lv_obj_set_style_text_align(lbl_ic, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(lbl_ic, 80);
-    lv_obj_align(lbl_ic, LV_ALIGN_CENTER, 0, 4);
+    lv_obj_align(lbl_ic, LV_ALIGN_CENTER, 0, 2);
 
     // Count good vs bad gates
     uint8_t good_gates = 0;
@@ -129,29 +130,38 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
         else bad_gates++;
     }
 
-    // Draw Pins
+    // Draw Pins aligned cleanly within 86px height
     uint8_t pins_per_side = ic->pin_count / 2;
-    uint16_t pin_spacing = 100 / pins_per_side;
+    uint16_t pin_spacing = 84 / pins_per_side;
     
     for (uint8_t i = 0; i < ic->pin_count; i++) {
         bool is_left = (i < pins_per_side);
         uint8_t row_idx = is_left ? i : (ic->pin_count - 1 - i);
         uint8_t zif_pin = i + 1;
         
-        lv_coord_t py = 6 + row_idx * pin_spacing + (pin_spacing / 2) - 3;
+        lv_coord_t py = 4 + row_idx * pin_spacing + (pin_spacing / 2) - 3;
         
         lv_color_t dot_color = CLR_TEXT_DIM;
-        bool is_faulty_output = false;
+        bool is_faulty_pin = false;
         
         for (uint8_t g = 0; g < ic->num_gates; g++) {
             if (ic->gates[g].output_pin == zif_pin) {
-                dot_color = r->gate_results[g].gate_pass ? CLR_SUCCESS : CLR_ERROR;
-                is_faulty_output = !r->gate_results[g].gate_pass;
+                if (r->gate_results[g].gate_pass) {
+                    dot_color = CLR_SUCCESS;
+                } else {
+                    dot_color = CLR_ERROR;
+                    is_faulty_pin = true;
+                }
                 break;
             }
             for (uint8_t inp = 0; inp < ic->gates[g].num_inputs; inp++) {
                 if (ic->gates[g].input_pins[inp] == zif_pin) {
-                    dot_color = CLR_BG_DARK;
+                    if (r->gate_results[g].gate_pass) {
+                        dot_color = CLR_BG_DARK;
+                    } else {
+                        dot_color = CLR_ERROR;
+                        is_faulty_pin = true;
+                    }
                 }
             }
         }
@@ -161,22 +171,38 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
         }
         
         lv_obj_t *pin_dot = lv_obj_create(ic_area);
-        lv_obj_set_size(pin_dot, 20, 6);
+        lv_obj_set_size(pin_dot, 20, 5);
         lv_obj_align(pin_dot, LV_ALIGN_TOP_MID, is_left ? -54 : 54, py);
         lv_obj_set_style_bg_color(pin_dot, dot_color, 0);
         lv_obj_set_style_border_width(pin_dot, 0, 0);
         lv_obj_set_style_radius(pin_dot, 2, 0);
         lv_obj_clear_flag(pin_dot, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
         
-        if (is_faulty_output) {
+        // ── Blinking Animation for Faulty Gate Pins ──────────────────────────
+        if (is_faulty_pin) {
             lv_obj_set_style_shadow_color(pin_dot, CLR_ERROR, 0);
-            lv_obj_set_style_shadow_width(pin_dot, 6, 0);
+            lv_obj_set_style_shadow_width(pin_dot, 8, 0);
+            lv_obj_set_style_shadow_opa(pin_dot, LV_OPA_COVER, 0);
+
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, pin_dot);
+            lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_20);
+            lv_anim_set_time(&a, 350);
+            lv_anim_set_playback_time(&a, 350);
+            lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&a, [](void *obj, int32_t v) {
+                lv_obj_set_style_bg_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
+                lv_obj_set_style_shadow_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
+            });
+            lv_anim_start(&a);
         }
 
         lv_obj_t *lbl_pin = lv_label_create(ic_area);
         lv_label_set_text_fmt(lbl_pin, "%d", zif_pin);
         lv_obj_set_style_text_font(lbl_pin, FONT_TINY, 0);
-        lv_obj_set_style_text_color(lbl_pin, CLR_TEXT_DIM, 0);
+        lv_obj_set_style_text_color(lbl_pin, is_faulty_pin ? CLR_ERROR : CLR_TEXT_DIM, 0);
         lv_obj_align(lbl_pin, LV_ALIGN_TOP_MID, is_left ? -76 : 76, py - 4);
     }
     
@@ -207,6 +233,13 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
 static void on_home(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     ui_home_show();
+}
+
+static void on_retest(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (g_result && g_result->ic) {
+        ui_test_running_show(g_result->ic, false);
+    }
 }
 
 static void on_save(lv_event_t *e) {
@@ -265,29 +298,41 @@ void ui_result_show(const ICTestResult *result) {
     // ── Draw Detailed IC Diagram ────────────────────────────────────────────
     draw_ic_visualization(scr_result, result);
 
-    // ── Bottom Action Buttons ───────────────────────────────────────────────
+    // ── Bottom Action Buttons (HOME | RETEST | SAVE) ────────────────────────
     lv_obj_t *btn_home = lv_btn_create(scr_result);
-    lv_obj_set_size(btn_home, 126, 38);
+    lv_obj_set_size(btn_home, 86, 36);
     lv_obj_align(btn_home, LV_ALIGN_BOTTOM_LEFT, 12, -8);
     theme_apply_btn_secondary(btn_home);
     lv_obj_add_event_cb(btn_home, on_home, LV_EVENT_ALL, nullptr);
     
     lv_obj_t *lbl_home = lv_label_create(btn_home);
-    lv_label_set_text(lbl_home, LV_SYMBOL_HOME "  HOME");
-    lv_obj_set_style_text_font(lbl_home, FONT_SMALL, 0);
+    lv_label_set_text(lbl_home, LV_SYMBOL_HOME " HOME");
+    lv_obj_set_style_text_font(lbl_home, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_home, CLR_TEXT, 0);
     lv_obj_align(lbl_home, LV_ALIGN_CENTER, 0, 0);
 
+    lv_obj_t *btn_retest = lv_btn_create(scr_result);
+    lv_obj_set_size(btn_retest, 108, 36);
+    lv_obj_align(btn_retest, LV_ALIGN_BOTTOM_MID, 0, -8);
+    theme_apply_btn(btn_retest);
+    lv_obj_add_event_cb(btn_retest, on_retest, LV_EVENT_ALL, nullptr);
+    
+    lv_obj_t *lbl_retest = lv_label_create(btn_retest);
+    lv_label_set_text(lbl_retest, LV_SYMBOL_REFRESH " RETEST");
+    lv_obj_set_style_text_font(lbl_retest, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_retest, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_retest, LV_ALIGN_CENTER, 0, 0);
+
     lv_obj_t *btn_save = lv_btn_create(scr_result);
-    lv_obj_set_size(btn_save, 162, 38);
+    lv_obj_set_size(btn_save, 86, 36);
     lv_obj_align(btn_save, LV_ALIGN_BOTTOM_RIGHT, -12, -8);
-    theme_apply_btn(btn_save);
+    theme_apply_btn_secondary(btn_save);
     lv_obj_add_event_cb(btn_save, on_save, LV_EVENT_ALL, nullptr);
     
     lv_obj_t *lbl_save = lv_label_create(btn_save);
-    lv_label_set_text(lbl_save, LV_SYMBOL_SAVE "  SAVE HISTORY");
-    lv_obj_set_style_text_font(lbl_save, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_save, lv_color_hex(0xFFFFFF), 0);
+    lv_label_set_text(lbl_save, LV_SYMBOL_SAVE " SAVE");
+    lv_obj_set_style_text_font(lbl_save, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_save, CLR_TEXT, 0);
     lv_obj_align(lbl_save, LV_ALIGN_CENTER, 0, 0);
 
     // ── Load & trigger sound ────────────────────────────────────────────────
