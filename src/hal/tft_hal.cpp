@@ -89,6 +89,7 @@ void tft_hal_init(void) {
     tft.init(240, 320);
     tft.setSPISpeed(40000000); // 40MHz SPI clock for ST7789
     tft.setRotation(1); // Landscape
+    tft.invertDisplay(false); // Fix color inversion (fixes white->black, green->pink issue)
     tft.fillScreen(ST77XX_BLACK);
 
     // --- Init Touch ---

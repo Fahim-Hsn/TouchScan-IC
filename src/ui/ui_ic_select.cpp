@@ -133,17 +133,14 @@ void ui_ic_select_show(void) {
     scr_select = lv_obj_create(nullptr);
     theme_apply_screen(scr_select);
 
-    // ── Header bar ──────────────────────────────────────────────────────
+    // ── TOP HEADER (Light Blue Background) ─────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr_select);
-    lv_obj_set_size(hdr, DISPLAY_WIDTH, 30);
+    lv_obj_set_size(hdr, DISPLAY_WIDTH, 80);
     lv_obj_set_pos(hdr, 0, 0);
-    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0);
+    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0); // Light Blue
     lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_color(hdr, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(hdr, 1, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(hdr, 4, 0);
+    lv_obj_set_style_pad_all(hdr, 8, 0);
     lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
 
     // Back button
@@ -155,14 +152,14 @@ void ui_ic_select_show(void) {
     lv_obj_t *lbl_back = lv_label_create(btn_back);
     lv_label_set_text(lbl_back, LV_SYMBOL_LEFT " BACK");
     lv_obj_set_style_text_font(lbl_back, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_back, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_back, lv_color_hex(0xFFFFFF), 0); // White
     lv_obj_align(lbl_back, LV_ALIGN_CENTER, 0, 0);
 
     // Title
     lv_obj_t *lbl_hdr_title = lv_label_create(hdr);
     lv_label_set_text(lbl_hdr_title, "SELECT IC");
     lv_obj_set_style_text_font(lbl_hdr_title, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_hdr_title, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_hdr_title, lv_color_hex(0xFFFFFF), 0); // White
     lv_obj_set_style_text_letter_space(lbl_hdr_title, 2, 0);
     lv_obj_align(lbl_hdr_title, LV_ALIGN_CENTER, 0, 0);
 
@@ -173,13 +170,12 @@ void ui_ic_select_show(void) {
     lv_obj_set_style_text_color(lbl_selected, CLR_WARNING, 0);
     lv_obj_align(lbl_selected, LV_ALIGN_RIGHT_MID, -4, 0);
 
-    // ── Scrollable IC list ──────────────────────────────────────────────
+    // ── Scrollable IC list (Floating White Card) ─────────────────────────
     lv_obj_t *list = lv_obj_create(scr_select);
-    lv_obj_set_size(list, DISPLAY_WIDTH - 12, DISPLAY_HEIGHT - 30 - 50);
-    lv_obj_set_pos(list, 6, 34);
-    lv_obj_set_style_bg_color(list, CLR_BG, 0);
-    lv_obj_set_style_bg_opa(list, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_size(list, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 90);
+    lv_obj_set_pos(list, 10, 40);
+    theme_apply_panel(list); // White card with soft shadow
+    lv_obj_set_style_radius(list, 16, 0);
     lv_obj_set_style_pad_row(list, 4, 0);
     lv_obj_set_style_pad_all(list, 4, 0);
     lv_obj_set_layout(list, LV_LAYOUT_FLEX);
@@ -208,7 +204,7 @@ void ui_ic_select_show(void) {
         lv_obj_t *lbl_num = lv_label_create(row);
         lv_label_set_text(lbl_num, ic->ic_number);
         lv_obj_set_style_text_font(lbl_num, FONT_MEDIUM, 0);
-        lv_obj_set_style_text_color(lbl_num, CLR_NEON, 0);
+        lv_obj_set_style_text_color(lbl_num, CLR_BG_DARK, 0); // Green text
         lv_obj_align(lbl_num, LV_ALIGN_LEFT_MID, 4, 0);
 
         // Full name (centre)

@@ -136,69 +136,64 @@ void ui_home_show(void) {
 
     scr_home = lv_obj_create(nullptr);
     theme_apply_screen(scr_home);
+    
+    // Remove the grid lines for a cleaner modern look
 
-    // ── Grid background lines ──────────────────────────────────────────
-    for (int i = 0; i < DISPLAY_HEIGHT / 20; i++) {
-        lv_obj_t *g = lv_obj_create(scr_home);
-        lv_obj_set_size(g, DISPLAY_WIDTH, 1);
-        lv_obj_set_pos(g, 0, i * 20);
-        lv_obj_set_style_bg_color(g, CLR_GRID, 0);
-        lv_obj_set_style_bg_opa(g, LV_OPA_30, 0);
-        lv_obj_set_style_border_width(g, 0, 0);
-        lv_obj_clear_flag(g, LV_OBJ_FLAG_CLICKABLE);
-    }
+    // ── TOP HEADER (Text only) ───────────────────────────────────────────────
+    lv_obj_t *header_area = lv_obj_create(scr_home);
+    lv_obj_set_size(header_area, DISPLAY_WIDTH, 50);
+    lv_obj_align(header_area, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_bg_opa(header_area, LV_OPA_TRANSP, 0); // No background
+    lv_obj_set_style_border_width(header_area, 0, 0);
+    lv_obj_set_style_pad_all(header_area, 0, 0);
+    lv_obj_clear_flag(header_area, LV_OBJ_FLAG_SCROLLABLE);
 
-    // ── STATUS BAR ────────────────────────────────────────────────────
-    lv_obj_t *status_bar = lv_obj_create(scr_home);
-    lv_obj_set_size(status_bar, DISPLAY_WIDTH, 22);
-    lv_obj_set_pos(status_bar, 0, 0);
-    lv_obj_set_style_bg_color(status_bar, CLR_BG_DARK, 0);
-    lv_obj_set_style_bg_opa(status_bar, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(status_bar, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(status_bar, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_side(status_bar, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_width(status_bar, 1, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(status_bar, 2, 0);
-    lv_obj_clear_flag(status_bar, LV_OBJ_FLAG_SCROLLABLE);
+    // "IC CHECKER" title
+    lv_obj_t *lbl_title = lv_label_create(header_area);
+    lv_label_set_text(lbl_title, "IC CHECKER");
+    lv_obj_set_style_text_font(lbl_title, FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(lbl_title, CLR_TEXT_LABEL, 0); // Dark text
+    lv_obj_align(lbl_title, LV_ALIGN_TOP_LEFT, 15, 15);
 
-    // Battery label (left)
-    lbl_batt = lv_label_create(status_bar);
+    // Battery label
+    lbl_batt = lv_label_create(header_area);
     lv_obj_set_style_text_font(lbl_batt, FONT_TINY, 0);
-    lv_obj_align(lbl_batt, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_set_style_text_color(lbl_batt, CLR_TEXT_DIM, 0); // Dim text
+    lv_obj_align(lbl_batt, LV_ALIGN_TOP_RIGHT, -15, 15);
     update_batt_label(battery_hal_get_percent());
 
-    // "IC CHECKER" title (centre)
-    lv_obj_t *lbl_title_bar = lv_label_create(status_bar);
-    lv_label_set_text(lbl_title_bar, "IC CHECKER");
-    lv_obj_set_style_text_font(lbl_title_bar, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_title_bar, CLR_NEON, 0);
-    lv_obj_set_style_text_letter_space(lbl_title_bar, 2, 0);
-    lv_obj_align(lbl_title_bar, LV_ALIGN_CENTER, 0, 0);
+    // ── CENTRE FLOATING CARD (Light Blue) ────────────────────────────────────
+    lv_obj_t *main_card = lv_obj_create(scr_home);
+    lv_obj_set_size(main_card, 290, 140);
+    lv_obj_align(main_card, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_style_bg_color(main_card, CLR_BG_DARK, 0); // Light Blue
+    lv_obj_set_style_bg_opa(main_card, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(main_card, 16, 0);
+    lv_obj_set_style_border_width(main_card, 0, 0);
+    
+    // Soft shadow for the blue card
+    lv_obj_set_style_shadow_color(main_card, CLR_BG_DARK, 0);
+    lv_obj_set_style_shadow_width(main_card, 15, 0);
+    lv_obj_set_style_shadow_opa(main_card, LV_OPA_30, 0);
+    
+    lv_obj_clear_flag(main_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Last test time (right)
-    lbl_lasttest = lv_label_create(status_bar);
-    lv_label_set_text(lbl_lasttest, "---ms");
-    lv_obj_set_style_text_font(lbl_lasttest, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_lasttest, CLR_TEXT_LABEL, 0);
-    lv_obj_align(lbl_lasttest, LV_ALIGN_RIGHT_MID, -4, 0);
-
-    // ── CENTRE AREA — Insert IC zone ──────────────────────────────────
-    // Pulsing ring
-    ring_pulse = lv_obj_create(scr_home);
-    lv_obj_set_size(ring_pulse, 80, 80);
-    lv_obj_align(ring_pulse, LV_ALIGN_CENTER, 0, -16);
+    // Pulsing ring inside card
+    ring_pulse = lv_obj_create(main_card);
+    lv_obj_set_size(ring_pulse, 70, 70);
+    lv_obj_align(ring_pulse, LV_ALIGN_CENTER, 0, -10);
     lv_obj_set_style_bg_opa(ring_pulse, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_color(ring_pulse, CLR_NEON, 0);
+    lv_obj_set_style_border_color(ring_pulse, CLR_CYAN, 0);
     lv_obj_set_style_border_width(ring_pulse, 2, 0);
     lv_obj_set_style_radius(ring_pulse, LV_RADIUS_CIRCLE, 0);
     lv_obj_clear_flag(ring_pulse, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     start_pulse_anim(ring_pulse);
 
-    // ZIF icon (inner circle)
-    lv_obj_t *ic_icon = lv_obj_create(scr_home);
-    lv_obj_set_size(ic_icon, 50, 50);
-    lv_obj_align(ic_icon, LV_ALIGN_CENTER, 0, -16);
-    lv_obj_set_style_bg_color(ic_icon, CLR_BG_PANEL, 0);
+    // ZIF icon (inner circle) inside card
+    lv_obj_t *ic_icon = lv_obj_create(main_card);
+    lv_obj_set_size(ic_icon, 46, 46);
+    lv_obj_align(ic_icon, LV_ALIGN_CENTER, 0, -10);
+    lv_obj_set_style_bg_color(ic_icon, CLR_BG, 0);
     lv_obj_set_style_border_color(ic_icon, CLR_BLUE_DIM, 0);
     lv_obj_set_style_border_width(ic_icon, 1, 0);
     lv_obj_set_style_radius(ic_icon, LV_RADIUS_CIRCLE, 0);
@@ -208,66 +203,58 @@ void ui_home_show(void) {
     lv_obj_t *lbl_cpu = lv_label_create(ic_icon);
     lv_label_set_text(lbl_cpu, LV_SYMBOL_SETTINGS);
     lv_obj_set_style_text_font(lbl_cpu, FONT_LARGE, 0);
-    lv_obj_set_style_text_color(lbl_cpu, CLR_NEON, 0);
-    lv_obj_align(lbl_cpu, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_color(lbl_cpu, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(lbl_cpu, LV_ALIGN_TOP_MID, 0, 30);
 
-    // IC status label
-    lbl_ic_status = lv_label_create(scr_home);
-    lv_label_set_text(lbl_ic_status, "Insert IC into ZIF Socket");
+    // Subtitle
+    lv_obj_t *lbl_sub = lv_label_create(main_card);
+    lv_label_set_text(lbl_sub, "Insert IC into ZIF socket to begin");
+    lv_obj_set_style_text_font(lbl_sub, FONT_SMALL, 0);
+    lv_obj_set_style_text_color(lbl_sub, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_align(lbl_sub, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_sub, LV_ALIGN_BOTTOM_MID, 0, -30);
+
+    // IC status label inside card
+    lbl_ic_status = lv_label_create(main_card);
+    lv_label_set_text(lbl_ic_status, "Insert IC to Begin");
     lv_obj_set_style_text_font(lbl_ic_status, FONT_SMALL, 0);
     lv_obj_set_style_text_color(lbl_ic_status, CLR_TEXT_DIM, 0);
     lv_obj_set_style_text_align(lbl_ic_status, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(lbl_ic_status, LV_ALIGN_CENTER, 0, 36);
+    lv_obj_align(lbl_ic_status, LV_ALIGN_BOTTOM_MID, 0, -5);
 
-    // ── BOTTOM NAVIGATION BAR ─────────────────────────────────────────
+    // ── BOTTOM FLOATING NAVIGATION PILL (Light Green) ──────────────────
     lv_obj_t *nav = lv_obj_create(scr_home);
-    lv_obj_set_size(nav, DISPLAY_WIDTH, 62);
-    lv_obj_align(nav, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(nav, CLR_BG_DARK, 0);
-    lv_obj_set_style_bg_opa(nav, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(nav, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(nav, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_side(nav, LV_BORDER_SIDE_TOP, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(nav, 6, 0);
-    lv_obj_set_style_pad_column(nav, 6, 0);
+    lv_obj_set_size(nav, 290, 56);
+    lv_obj_align(nav, LV_ALIGN_BOTTOM_MID, 0, -15);
+    theme_apply_nav_pill(nav);
     lv_obj_clear_flag(nav, LV_OBJ_FLAG_SCROLLABLE);
+    
     lv_obj_set_layout(nav, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(nav, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(nav, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     // Helper lambda to create nav button
-    auto make_nav_btn = [&](const char *icon, const char *label_text, lv_event_cb_t cb) {
+    auto make_nav_btn = [&](const char *icon, lv_event_cb_t cb) {
         lv_obj_t *btn = lv_btn_create(nav);
-        lv_obj_set_size(btn, 68, 48);
-        theme_apply_btn(btn);
-        lv_obj_set_style_pad_all(btn, 4, 0);
+        lv_obj_set_size(btn, 60, 46);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0); // Transparent background for nav buttons
+        lv_obj_set_style_shadow_opa(btn, LV_OPA_TRANSP, 0); // No shadow for nav buttons
+        lv_obj_set_style_pad_all(btn, 0, 0); // Clear default button padding
+        lv_obj_set_style_border_width(btn, 0, 0); // Clear default border
         lv_obj_add_event_cb(btn, cb, LV_EVENT_ALL, nullptr);
 
-        lv_obj_t *col = lv_obj_create(btn);
-        lv_obj_set_size(col, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(col, 0, 0);
-        lv_obj_set_style_pad_all(col, 0, 0);
-        lv_obj_set_layout(col, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_clear_flag(col, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-
-        lv_obj_t *ico = lv_label_create(col);
+        lv_obj_t *ico = lv_label_create(btn);
         lv_label_set_text(ico, icon);
-        lv_obj_set_style_text_font(ico, FONT_NORMAL, 0);
-        lv_obj_set_style_text_color(ico, CLR_NEON, 0);
+        lv_obj_set_style_text_font(ico, FONT_LARGE, 0);
+        lv_obj_set_style_text_color(ico, lv_color_hex(0xFFFFFF), 0); // White icon on Green
+        lv_obj_align(ico, LV_ALIGN_CENTER, 0, 0);
 
-        lv_obj_t *lbl = lv_label_create(col);
-        lv_label_set_text(lbl, label_text);
-        lv_obj_set_style_text_font(lbl, FONT_TINY, 0);
-        lv_obj_set_style_text_color(lbl, CLR_TEXT_DIM, 0);
         return btn;
     };
 
-    make_nav_btn(LV_SYMBOL_LIST,    "BROWSE",   on_btn_ic_select);
-    make_nav_btn(LV_SYMBOL_REFRESH, "HISTORY",  on_btn_history);
-    make_nav_btn(LV_SYMBOL_SETTINGS,"SETTINGS", on_btn_settings);
+    make_nav_btn(LV_SYMBOL_LIST, on_btn_ic_select);
+    make_nav_btn(LV_SYMBOL_REFRESH, on_btn_history);
+    make_nav_btn(LV_SYMBOL_SETTINGS, on_btn_settings);
 
     // ── Load screen ──────────────────────────────────────────────────
     lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);

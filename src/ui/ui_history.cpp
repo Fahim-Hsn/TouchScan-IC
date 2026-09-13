@@ -29,17 +29,14 @@ void ui_history_show(void) {
     lv_obj_t *scr = lv_obj_create(nullptr);
     theme_apply_screen(scr);
 
-    // ── Header ─────────────────────────────────────────────────────────────
+    // ── TOP HEADER (Light Blue Background) ─────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr);
-    lv_obj_set_size(hdr, DISPLAY_WIDTH, 30);
+    lv_obj_set_size(hdr, DISPLAY_WIDTH, 80);
     lv_obj_set_pos(hdr, 0, 0);
-    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0);
+    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0); // Light Blue
     lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_color(hdr, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(hdr, 1, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(hdr, 4, 0);
+    lv_obj_set_style_pad_all(hdr, 8, 0);
     lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *btn_back = lv_btn_create(hdr);
@@ -50,13 +47,13 @@ void ui_history_show(void) {
     lv_obj_t *lbl_b = lv_label_create(btn_back);
     lv_label_set_text(lbl_b, LV_SYMBOL_LEFT " BACK");
     lv_obj_set_style_text_font(lbl_b, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_b, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_b, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_b, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *lbl_title = lv_label_create(hdr);
     lv_label_set_text(lbl_title, "TEST HISTORY");
     lv_obj_set_style_text_font(lbl_title, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_title, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_letter_space(lbl_title, 2, 0);
     lv_obj_align(lbl_title, LV_ALIGN_CENTER, 0, 0);
 
@@ -79,13 +76,12 @@ void ui_history_show(void) {
     prefs.begin("ic_history", true);  // Read-only
     uint8_t cnt = prefs.getUChar("cnt", 0);
 
-    // ── Scrollable list ────────────────────────────────────────────────────
+    // ── Scrollable list (Floating White Card) ──────────────────────────────
     lv_obj_t *list = lv_obj_create(scr);
-    lv_obj_set_size(list, DISPLAY_WIDTH - 12, DISPLAY_HEIGHT - 32);
-    lv_obj_set_pos(list, 6, 33);
-    lv_obj_set_style_bg_color(list, CLR_BG, 0);
-    lv_obj_set_style_bg_opa(list, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_size(list, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 90);
+    lv_obj_set_pos(list, 10, 40);
+    theme_apply_panel(list); // White card with soft shadow
+    lv_obj_set_style_radius(list, 16, 0);
     lv_obj_set_style_pad_row(list, 4, 0);
     lv_obj_set_style_pad_all(list, 2, 0);
     lv_obj_set_layout(list, LV_LAYOUT_FLEX);

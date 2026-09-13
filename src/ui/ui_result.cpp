@@ -78,13 +78,11 @@ static void save_to_history(const ICTestResult *r) {
 static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     const ICDescriptor *ic = r->ic;
     
-    // Create an area for the IC visualization
+    // Create an area for the IC visualization (Floating White Card)
     lv_obj_t *ic_area = lv_obj_create(parent);
-    lv_obj_set_size(ic_area, DISPLAY_WIDTH, 160);
-    lv_obj_align(ic_area, LV_ALIGN_TOP_MID, 0, 38);
-    lv_obj_set_style_bg_opa(ic_area, 0, 0); 
-    lv_obj_set_style_border_width(ic_area, 0, 0);
-    lv_obj_set_style_pad_all(ic_area, 0, 0);
+    lv_obj_set_size(ic_area, 290, 145);
+    lv_obj_align(ic_area, LV_ALIGN_TOP_MID, 0, 45);
+    theme_apply_panel(ic_area); // Apply white card with shadow
     lv_obj_clear_flag(ic_area, LV_OBJ_FLAG_SCROLLABLE);
 
     // Physical IC Body (Vertical)
@@ -152,7 +150,7 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
         lv_coord_t py = 8 + row_idx * pin_spacing + (pin_spacing / 2) - 2;
         
         // Determine Pin Color
-        lv_color_t dot_color = lv_color_hex(0x5A3A8A); // Vibrant purple for unused/power pins
+        lv_color_t dot_color = CLR_TEXT_DIM; // Muted gray for unused/power pins
         bool is_faulty_output = false;
         
         for (uint8_t g = 0; g < ic->num_gates; g++) {
@@ -279,29 +277,24 @@ void ui_result_show(const ICTestResult *result) {
 
     // Skip background grid to save LVGL objects and prevent memory pressure
 
-    // ── Header bar ────────────────────────────────────────────────────────
+    // ── TOP HEADER (Light Blue Background) ─────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr_result);
-    lv_obj_set_size(hdr, DISPLAY_WIDTH, 36);
+    lv_obj_set_size(hdr, DISPLAY_WIDTH, 130);
     lv_obj_set_pos(hdr, 0, 0);
-    lv_obj_set_style_bg_color(hdr, pass ? CLR_SUCCESS_DIM : CLR_ERROR_DIM, 0);
+    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0); // Light Blue
     lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(hdr, 0, 0);
     lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_color(hdr, pass ? CLR_SUCCESS : CLR_ERROR, LV_PART_MAIN);
-    lv_obj_set_style_border_width(hdr, 2, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(hdr, 4, 0);
+    lv_obj_set_style_pad_all(hdr, 0, 0); // Remove padding for precise absolute positioning
     lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Result verdict
-    char verdict[48];
-    snprintf(verdict, sizeof(verdict), "%s  %s",
-        pass ? LV_SYMBOL_OK : LV_SYMBOL_WARNING,
-        pass ? "ALL GATES PASSED" : "FAULT DETECTED");
+    // Title (left)
+    const char *verdict = pass ? LV_SYMBOL_OK " TEST PASSED" : LV_SYMBOL_WARNING " TEST FAILED";
     lv_obj_t *lbl_verdict = lv_label_create(hdr);
     lv_label_set_text(lbl_verdict, verdict);
     lv_obj_set_style_text_font(lbl_verdict, FONT_MEDIUM, 0);
-    lv_obj_set_style_text_color(lbl_verdict, pass ? CLR_SUCCESS : CLR_ERROR, 0);
-    lv_obj_align(lbl_verdict, LV_ALIGN_LEFT_MID, 6, 0);
+    lv_obj_set_style_text_color(lbl_verdict, lv_color_hex(0xFFFFFF), 0); // White text
+    lv_obj_align(lbl_verdict, LV_ALIGN_TOP_LEFT, 15, 10);
 
     // IC name + time (right)
     char hdr_right[24];
@@ -310,8 +303,8 @@ void ui_result_show(const ICTestResult *result) {
     lv_obj_t *lbl_hdr_r = lv_label_create(hdr);
     lv_label_set_text(lbl_hdr_r, hdr_right);
     lv_obj_set_style_text_font(lbl_hdr_r, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_hdr_r, CLR_TEXT_DIM, 0);
-    lv_obj_align(lbl_hdr_r, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_set_style_text_color(lbl_hdr_r, lv_color_hex(0xFFFFFF), 0); // White text
+    lv_obj_align(lbl_hdr_r, LV_ALIGN_TOP_RIGHT, -15, 15);
 
     // ── Draw Detailed IC Diagram ─────────────────────────────────────────────
     draw_ic_visualization(scr_result, result);
@@ -325,7 +318,7 @@ void ui_result_show(const ICTestResult *result) {
     lv_obj_t *lbl_home = lv_label_create(btn_home);
     lv_label_set_text(lbl_home, LV_SYMBOL_HOME "  HOME");
     lv_obj_set_style_text_font(lbl_home, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_home, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_home, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_home, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *btn_save = lv_btn_create(scr_result);

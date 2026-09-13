@@ -67,27 +67,16 @@ void ui_settings_show(void) {
     lv_obj_t *scr = lv_obj_create(nullptr);
     theme_apply_screen(scr);
 
-    // Background grid
-    for (int i = 0; i < DISPLAY_HEIGHT / 20; i++) {
-        lv_obj_t *g = lv_obj_create(scr);
-        lv_obj_set_size(g, DISPLAY_WIDTH, 1);
-        lv_obj_set_pos(g, 0, i * 20);
-        lv_obj_set_style_bg_color(g, CLR_GRID, 0);
-        lv_obj_set_style_bg_opa(g, LV_OPA_30, 0);
-        lv_obj_set_style_border_width(g, 0, 0);
-        lv_obj_clear_flag(g, LV_OBJ_FLAG_CLICKABLE);
-    }
+    // Grid background removed for cleaner UI
 
-    // ── Header ─────────────────────────────────────────────────────────────
+    // ── TOP HEADER (Light Blue Background) ─────────────────────────────────
     lv_obj_t *hdr = lv_obj_create(scr);
-    lv_obj_set_size(hdr, DISPLAY_WIDTH, 30);
+    lv_obj_set_size(hdr, DISPLAY_WIDTH, 80);
     lv_obj_set_pos(hdr, 0, 0);
-    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0);
+    lv_obj_set_style_bg_color(hdr, CLR_BG_DARK, 0); // Light Blue
     lv_obj_set_style_bg_opa(hdr, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(hdr, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_side(hdr, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN);
-    lv_obj_set_style_border_color(hdr, CLR_SEPARATOR, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(hdr, 4, 0);
+    lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(hdr, 8, 0);
     lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *btn_back = lv_btn_create(hdr);
@@ -98,21 +87,22 @@ void ui_settings_show(void) {
     lv_obj_t *lbl_b = lv_label_create(btn_back);
     lv_label_set_text(lbl_b, LV_SYMBOL_LEFT " BACK");
     lv_obj_set_style_text_font(lbl_b, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_b, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_b, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_b, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *lbl_title = lv_label_create(hdr);
     lv_label_set_text(lbl_title, "SETTINGS");
     lv_obj_set_style_text_font(lbl_title, FONT_SMALL, 0);
-    lv_obj_set_style_text_color(lbl_title, CLR_NEON, 0);
+    lv_obj_set_style_text_color(lbl_title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_letter_space(lbl_title, 3, 0);
     lv_obj_align(lbl_title, LV_ALIGN_CENTER, 0, 0);
 
-    // ── Settings container ─────────────────────────────────────────────────
+    // ── Settings container (Floating White Card) ───────────────────────────
     lv_obj_t *cont = lv_obj_create(scr);
-    lv_obj_set_size(cont, DISPLAY_WIDTH - 16, DISPLAY_HEIGHT - 40);
-    lv_obj_align(cont, LV_ALIGN_BOTTOM_MID, 0, -4);
-    lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_size(cont, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 90);
+    lv_obj_set_pos(cont, 10, 40);
+    theme_apply_panel(cont); // White card
+    lv_obj_set_style_radius(cont, 16, 0);
     lv_obj_set_style_border_width(cont, 0, 0);
     lv_obj_set_style_pad_all(cont, 4, 0);
     lv_obj_set_style_pad_row(cont, 10, 0);

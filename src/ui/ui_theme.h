@@ -8,25 +8,25 @@
 #include <lvgl.h>
 
 // ─── Color Palette ────────────────────────────────────────────────────────
-// Modern Flat / "Lorem Bank" Light Theme
+// Light Blue & Light Green Modern Theme (Based on User Mockup)
 #define CLR_BG          lv_color_hex(0xF4F6F9)   // Pristine light gray/off-white background
 #define CLR_BG_PANEL    lv_color_hex(0xFFFFFF)   // Pure white for cards/panels
-#define CLR_BG_DARK     lv_color_hex(0x201A51)   // Deep Indigo for primary buttons/accents
+#define CLR_BG_DARK     lv_color_hex(0x0EA5E9)   // Sky Blue (Primary for headers / main cards)
 
-#define CLR_NEON        lv_color_hex(0x2F267A)   // Lighter Indigo for gradients/pressed states
-#define CLR_CYAN        lv_color_hex(0x4361EE)   // Soft blue accent
-#define CLR_BLUE_DIM    lv_color_hex(0xE5E7EB)   // Light gray for borders (no longer blue)
-#define CLR_BLUE_GLOW   lv_color_hex(0x3B3486)   // Indigo pressed state
+#define CLR_NEON        lv_color_hex(0x38BDF8)   // Lighter Sky Blue for accents/pressed states
+#define CLR_CYAN        lv_color_hex(0x10B981)   // Emerald Light Green (Nav pill / accents)
+#define CLR_BLUE_DIM    lv_color_hex(0xE2E8F0)   // Light gray for borders
+#define CLR_BLUE_GLOW   lv_color_hex(0x0284C7)   // Darker Sky Blue
 
-#define CLR_SUCCESS     lv_color_hex(0x34C759)   // Lime Green (like toggle switch)
-#define CLR_SUCCESS_DIM lv_color_hex(0xE8F5E9)   // Light green background
-#define CLR_ERROR       lv_color_hex(0xFF3B30)   // Vibrant Red
-#define CLR_ERROR_DIM   lv_color_hex(0xFFEBEE)   // Light red background
-#define CLR_WARNING     lv_color_hex(0xFFCC00)   // Yellow
+#define CLR_SUCCESS     lv_color_hex(0x10B981)   // Emerald Green
+#define CLR_SUCCESS_DIM lv_color_hex(0xD1FAE5)   // Light green background
+#define CLR_ERROR       lv_color_hex(0xEF4444)   // Vibrant Red
+#define CLR_ERROR_DIM   lv_color_hex(0xFEE2E2)   // Light red background
+#define CLR_WARNING     lv_color_hex(0xF59E0B)   // Yellow
 
-#define CLR_TEXT        lv_color_hex(0x111827)   // Dark Slate for readability on light bg
-#define CLR_TEXT_DIM    lv_color_hex(0x6B7280)   // Muted gray text
-#define CLR_TEXT_LABEL  lv_color_hex(0x201A51)   // Indigo for headings
+#define CLR_TEXT        lv_color_hex(0x1E293B)   // Dark Slate for readability on light bg
+#define CLR_TEXT_DIM    lv_color_hex(0x94A3B8)   // Muted gray text
+#define CLR_TEXT_LABEL  lv_color_hex(0x0F172A)   // Darkest text for headings
 
 #define CLR_GRID        lv_color_hex(0xE5E7EB)   // Light gray grid
 #define CLR_SEPARATOR   lv_color_hex(0xD1D5DB)   // Divider lines
@@ -105,6 +105,22 @@ static inline void theme_apply_btn(lv_obj_t *btn) {
 static inline void theme_apply_label_neon(lv_obj_t *lbl) {
     lv_obj_set_style_text_color(lbl, CLR_BG_DARK, 0); // Indigo text for emphasis
     lv_obj_set_style_text_opa(lbl, OPA_FULL, 0);
+}
+
+/**
+ * @brief Style a floating navigation pill.
+ */
+static inline void theme_apply_nav_pill(lv_obj_t *nav) {
+    lv_obj_set_style_bg_color(nav, CLR_CYAN, 0); // Light Green pill
+    lv_obj_set_style_bg_opa(nav, OPA_FULL, 0);
+    lv_obj_set_style_radius(nav, 26, 0); // Pill shape
+    lv_obj_set_style_border_width(nav, 0, 0);
+    lv_obj_set_style_pad_all(nav, 0, 0);
+    
+    // Soft drop shadow
+    lv_obj_set_style_shadow_color(nav, CLR_CYAN, 0);
+    lv_obj_set_style_shadow_width(nav, 15, 0);
+    lv_obj_set_style_shadow_opa(nav, LV_OPA_40, 0);
 }
 
 /**
