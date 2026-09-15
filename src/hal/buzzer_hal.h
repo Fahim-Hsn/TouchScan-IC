@@ -36,6 +36,12 @@ void buzzer_hal_beep_bad(void);
 void buzzer_hal_beep_detect(void);
 
 /**
- * @brief Low-battery warning beep (two short low-pitched beeps).
+ * @brief Soft subtle click confirmation sound on button touch (~2400Hz, 15ms).
+ */
+void buzzer_hal_beep_click(void);
+
+/**
+ * @brief Low-battery warning beep (disabled per user request).
  */
 void buzzer_hal_beep_low_battery(void);
+

@@ -83,70 +83,86 @@ bool zif_hal_read(uint8_t zif_pin) {
 }
 
 bool zif_hal_detect_ic_presence(void) {
-    // Reliable detection: Power up the IC, then check if output pins
-    // are being actively driven (stable readings) vs floating (random/unstable).
-    //
-    // Method:
-    //   1. Drive VCC and GND pins to power the IC
-    //   2. Set all input pins to a known state (LOW)
-    //   3. Read output pins multiple times with alternating pullup/pulldown
-    //   4. If an IC is present, output pins will be actively driven to a 
-    //      consistent level. If no IC, pins will follow the pull direction (float).
+    // Reliable, non-destructive detection:
+    // 1. Power the IC (VCC=3.3V, GND=0V).
+    // 2. Keep all logic pins in high-Z input mode (no forced OUTPUT LOW)
+    //    to avoid short circuits / bus contention with IC outputs (e.g. 7402, 7404).
+    // 3. For all socket logic pins, test if the pin is actively driven by an IC output:
+    //    - With INPUT_PULLUP (weak ~45k pull-up): read pin logic state
+    //    - With INPUT_PULLDOWN (weak ~45k pull-down): read pin logic state
+    //    - If an IC gate is driving the pin HIGH or LOW, both reads match (val_pullup == val_pulldown).
+    //    - If the pin is empty / open circuit (floating), pullup gives 1 and pulldown gives 0.
 
     zif_hal_release_all();
 
-    // Power up: try both 14-pin (VCC=14, GND=7) and 16-pin (VCC=16, GND=8)
-    // Drive pin 14 HIGH (VCC for 14-pin ICs)
-    pinMode(zif_to_gpio(14), OUTPUT);
-    digitalWrite(zif_to_gpio(14), HIGH);
-    // Drive pin 7 LOW (GND for 14-pin ICs)
+    // --- Try 14-Pin IC Configuration (VCC=ZIF 16, GND=ZIF 7) ---
+    pinMode(zif_to_gpio(16), OUTPUT);
+    digitalWrite(zif_to_gpio(16), HIGH);
     pinMode(zif_to_gpio(7), OUTPUT);
     digitalWrite(zif_to_gpio(7), LOW);
-    // Also drive 16-pin power rails
+
+    delay(2); // Let power rail stabilise
+
+    // Active pins on a 14-pin IC top-aligned:
+    // Left side: ZIF 1..6 (IC 1..6)
+    // Right side: ZIF 10..15 (IC 8..13)
+    const uint8_t pins_14[] = {1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15};
+    uint8_t detected_14 = 0;
+
+    for (uint8_t p : pins_14) {
+        uint8_t gpio = zif_to_gpio(p);
+        if (gpio == 0) continue;
+
+        pinMode(gpio, INPUT_PULLUP);
+        delayMicroseconds(50);
+        bool val_pullup = (digitalRead(gpio) == HIGH);
+
+        pinMode(gpio, INPUT_PULLDOWN);
+        delayMicroseconds(50);
+        bool val_pulldown = (digitalRead(gpio) == HIGH);
+
+        if (val_pullup == val_pulldown) {
+            detected_14++;
+        }
+    }
+
+    zif_hal_release_all();
+
+    if (detected_14 >= 2) {
+        return true;
+    }
+
+    // --- Try 16-Pin IC Configuration (VCC=ZIF 16, GND=ZIF 8) ---
     pinMode(zif_to_gpio(16), OUTPUT);
     digitalWrite(zif_to_gpio(16), HIGH);
     pinMode(zif_to_gpio(8), OUTPUT);
     digitalWrite(zif_to_gpio(8), LOW);
 
-    // Set some common input pins LOW (pins 1, 2, 4, 5 are inputs on most 74xx)
-    uint8_t input_pins[] = {1, 2, 4, 5, 9, 10, 12, 13};
-    for (uint8_t p : input_pins) {
-        pinMode(zif_to_gpio(p), OUTPUT);
-        digitalWrite(zif_to_gpio(p), LOW);
-    }
+    delay(2);
 
-    delay(2); // Let the IC settle
+    const uint8_t pins_16[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15};
+    uint8_t detected_16 = 0;
 
-    // Check common output pins (pin 3, 6, 8, 11 are outputs on most 74xx ICs)
-    // If IC is present, these will be actively driven and won't follow pullup/pulldown
-    uint8_t test_pins[] = {3, 6, 11};
-    uint8_t detected_count = 0;
-
-    for (uint8_t p : test_pins) {
+    for (uint8_t p : pins_16) {
         uint8_t gpio = zif_to_gpio(p);
-        
-        // Read with PULLUP
+        if (gpio == 0) continue;
+
         pinMode(gpio, INPUT_PULLUP);
         delayMicroseconds(50);
-        bool val_pullup = digitalRead(gpio);
+        bool val_pullup = (digitalRead(gpio) == HIGH);
 
-        // Read with PULLDOWN
         pinMode(gpio, INPUT_PULLDOWN);
         delayMicroseconds(50);
-        bool val_pulldown = digitalRead(gpio);
+        bool val_pulldown = (digitalRead(gpio) == HIGH);
 
-        // If IC is driving the pin, both reads should give the SAME value
-        // (the IC overrides the weak pull resistor).
-        // If no IC (floating), pullup gives HIGH and pulldown gives LOW.
         if (val_pullup == val_pulldown) {
-            detected_count++;
+            detected_16++;
         }
     }
 
-    // Restore safe state
     zif_hal_release_all();
 
-    // If at least 2 out of 3 pins show active drive, IC is present
-    return (detected_count >= 2);
+    return (detected_16 >= 2);
 }
+
 

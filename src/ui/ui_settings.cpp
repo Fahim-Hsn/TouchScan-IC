@@ -36,6 +36,7 @@ static void save_settings(void) {
 
 static void on_back(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     save_settings();
     ui_home_show();
 }
@@ -45,7 +46,7 @@ static void on_buzzer_toggle(lv_event_t *e) {
     lv_obj_t *sw = lv_event_get_target(e);
     buzzer_enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
     buzzer_hal_set_enabled(buzzer_enabled);
-    if (buzzer_enabled) buzzer_hal_beep_detect();
+    if (buzzer_enabled) buzzer_hal_beep_click();
 }
 
 static void on_brightness_changed(lv_event_t *e) {
@@ -57,12 +58,14 @@ static void on_brightness_changed(lv_event_t *e) {
 
 static void on_view_history(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     save_settings();
     ui_history_show();
 }
 
 static void on_calibrate_touch(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     save_settings();
     tft_hal_calibrate_touch();
 }

@@ -232,11 +232,13 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
 // ─── Button callbacks ─────────────────────────────────────────────────────
 static void on_home(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     ui_home_show();
 }
 
 static void on_retest(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (g_result && g_result->ic) {
         ui_test_running_show(g_result->ic, false);
     }
@@ -244,6 +246,7 @@ static void on_retest(lv_event_t *e) {
 
 static void on_save(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (g_result) save_to_history(g_result);
     lv_obj_t *btn = lv_event_get_target(e);
     lv_obj_t *lbl = lv_obj_get_child(btn, 0);

@@ -6,6 +6,7 @@
 #include "ui_settings.h"
 #include "ui_home.h"
 #include "ui_theme.h"
+#include "../hal/buzzer_hal.h"
 #include "../config.h"
 #include <lvgl.h>
 #include <Preferences.h>
@@ -13,11 +14,13 @@
 
 static void on_back(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     ui_settings_show(); // Return to settings
 }
 
 static void on_clear_history(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     Preferences prefs;
     prefs.begin("ic_history", false);
     prefs.clear();

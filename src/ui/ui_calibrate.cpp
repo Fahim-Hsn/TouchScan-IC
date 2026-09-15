@@ -55,6 +55,7 @@ static void update_target_position(void) {
 
 static void on_cancel(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (t_poll) {
         lv_timer_del(t_poll);
         t_poll = nullptr;

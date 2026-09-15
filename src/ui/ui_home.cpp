@@ -110,6 +110,7 @@ static void ic_scan_anim_cb(lv_timer_t *) {
 // ─── Modal Popup helper ───────────────────────────────────────────────────
 static void close_modal(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (warn_modal) {
         lv_obj_del(warn_modal);
         warn_modal = nullptr;
@@ -166,6 +167,7 @@ static void show_modal(const char *title, const char *msg, bool is_error) {
 // ─── Button callbacks ─────────────────────────────────────────────────────
 static void on_btn_ic_select(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
     if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
     if (t_ic_anim)    { lv_timer_del(t_ic_anim);    t_ic_anim    = nullptr; }
@@ -174,6 +176,7 @@ static void on_btn_ic_select(lv_event_t *e) {
 
 static void on_btn_auto_test(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     
     if (!zif_hal_detect_ic_presence()) {
         buzzer_hal_beep_bad();
@@ -198,6 +201,7 @@ static void on_btn_auto_test(lv_event_t *e) {
 
 static void on_btn_settings(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (t_autodetect) { lv_timer_del(t_autodetect); t_autodetect = nullptr; }
     if (t_battery)    { lv_timer_del(t_battery);    t_battery    = nullptr; }
     if (t_ic_anim)    { lv_timer_del(t_ic_anim);    t_ic_anim    = nullptr; }
@@ -245,9 +249,7 @@ static void auto_detect_poll(lv_timer_t *) {
 static void battery_poll(lv_timer_t *) {
     uint8_t pct = battery_hal_get_percent();
     update_batt_label(pct);
-    if (battery_hal_is_critical()) {
-        buzzer_hal_beep_low_battery();
-    }
+    // Low battery beep disabled per user request
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────

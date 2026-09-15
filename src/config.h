@@ -88,7 +88,7 @@ constexpr uint8_t ZIF_GPIO[17] = {
 };
 
 // ─── Buzzer ───────────────────────────────────────────────────────────────
-constexpr uint8_t  BUZZER_GPIO     = 48;
+constexpr uint8_t  BUZZER_GPIO     = 46;
 constexpr uint8_t  BUZZER_LEDC_CH  = 0;
 constexpr uint8_t  BUZZER_LEDC_RES = 8;
 

@@ -32,11 +32,13 @@ static const ICDescriptor *selected_ic = nullptr;
 
 static void on_back(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     ui_home_show();
 }
 
 static void on_ic_item_click(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
 
     uint8_t idx = (uint8_t)(uintptr_t)lv_event_get_user_data(e);
     selected_ic = ic_db_get(idx);
@@ -51,6 +53,7 @@ static lv_obj_t *warn_box = nullptr;
 
 static void close_warning(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (warn_box) {
         lv_obj_del(warn_box);
         warn_box = nullptr;
@@ -111,9 +114,11 @@ static void show_no_ic_warning(void) {
 
 static void on_test_selected(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    buzzer_hal_beep_click();
     if (!selected_ic) return;
     
-    if (!zif_hal_detect_ic_presence()) {
+    if (!zif_hal_detect_ic_presence())
+     {
         show_no_ic_warning();
         return;
     }

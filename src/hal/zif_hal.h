@@ -59,3 +59,18 @@ bool zif_hal_read(uint8_t zif_pin);
  * @return true if an IC signature is detected on the ZIF socket.
  */
 bool zif_hal_detect_ic_presence(void);
+
+/**
+ * @brief Map logical IC pin to physical ZIF socket pin.
+ * For a 16-pin ZIF socket, if a 14-pin IC is inserted top-aligned (Pin 1 to Pin 1):
+ * - Left side: IC pins 1-7 go to ZIF pins 1-7
+ * - Right side: IC pins 8-14 go to ZIF pins 10-16 (ZIF pins 8 and 9 are empty)
+ */
+static inline uint8_t physical_zif(uint8_t ic_pin, uint8_t pin_count) {
+    if (pin_count == 14) {
+        if (ic_pin >= 8 && ic_pin <= 14) {
+            return ic_pin + 2;
+        }
+    }
+    return ic_pin;
+}
