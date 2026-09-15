@@ -13,7 +13,7 @@
  * │ TFT CS       │  GPIO 10   │                     │
  * │ TFT DC       │  GPIO  9   │                     │
  * │ TFT RST      │  GPIO  8   │                     │
- * │ TFT BL (PWM) │  GPIO 38   │ LEDC Ch 1           │
+ * │ TFT BL (PWM) │  GPIO 38   │ LEDC Ch 0           │
  * │ Touch CS     │  GPIO  7   │ XPT2046             │
  * │ Touch IRQ    │  GPIO  6   │ Optional polling     │
  * ├──────────────┼────────────┼────────────────────┤
@@ -34,7 +34,7 @@
  * │ ZIF Pin 15   │  GPIO 45   │                     │
  * │ ZIF Pin 16   │  GPIO 47   │ VCC for 16-pin ICs  │
  * ├──────────────┼────────────┼────────────────────┤
- * │ Buzzer (PWM) │  GPIO 48   │ LEDC Ch 0, Passive  │
+ * │ Buzzer (PWM) │  GPIO 46   │ LEDC Ch 2, Passive  │
  * │ Battery ADC  │  GPIO  4   │ ADC1_CH3, via divider│
  * └──────────────┴────────────┴────────────────────┘
  *
@@ -58,8 +58,9 @@ constexpr uint16_t DISPLAY_WIDTH  = 320;  // Logical (landscape after rotation)
 constexpr uint16_t DISPLAY_HEIGHT = 240;
 
 // ─── TFT Backlight ────────────────────────────────────────────────────────
+// Channel 0 uses LEDC Timer 0 (exclusively for backlight)
 constexpr uint8_t  TFT_BL_GPIO    = 38;
-constexpr uint8_t  BL_LEDC_CH     = 1;
+constexpr uint8_t  BL_LEDC_CH     = 0;
 constexpr uint8_t  BL_LEDC_RES    = 8;    // 8-bit (0-255)
 constexpr uint32_t BL_LEDC_FREQ   = 5000; // 5 kHz PWM
 
@@ -88,8 +89,9 @@ constexpr uint8_t ZIF_GPIO[17] = {
 };
 
 // ─── Buzzer ───────────────────────────────────────────────────────────────
+// Channel 2 uses LEDC Timer 1 (separate timer from Backlight)
 constexpr uint8_t  BUZZER_GPIO     = 46;
-constexpr uint8_t  BUZZER_LEDC_CH  = 0;
+constexpr uint8_t  BUZZER_LEDC_CH  = 2;
 constexpr uint8_t  BUZZER_LEDC_RES = 8;
 
 // ─── Battery ADC ──────────────────────────────────────────────────────────
