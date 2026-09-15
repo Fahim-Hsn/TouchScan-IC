@@ -1,18 +1,14 @@
 /**
- * ui_splash.cpp — High-Tech Sci-Fi "BAIUST IC CHECKER" Boot Screen
+ * ui_splash.cpp — Perfectly Centered Sci-Fi Holographic Radar & Oscilloscope Boot Screen
  *
- * Visual Features:
- *   - Futuristic HUD topbar with blinking status dot and system version.
- *   - Animated DIP-16 IC Chip graphic:
- *       • Silicon body with Pin 1 notch and "BAIUST / IC CHECKER" laser marking
- *       • 16 metallic DIP pins with sequential logic-pulse light scan
- *   - High-contrast diagnostics card with real-time percentage counter & live boot log:
- *       • [OK] ESP32-S3 Dual-Core @ 240MHz
- *       • [OK] 16MB Flash & 8MB PSRAM OK
- *       • [OK] 74xx / 40xx Logic Core Ready
- *       • [OK] ZIF-16 Socket Bus Active
- *       • [OK] BAIUST System Ready!
- *   - Melodic ascending boot sound & clean transition to Home screen.
+ * Layout (320x240):
+ *   - Top HUD (y=6..24): Compact, non-overlapping header with live pulsing LED dot & MCU tag.
+ *   - Center Stage (Optical Center y=105):
+ *       • 360° Holographic Arc Radar (114x114) with Crosshair Reticle & Concentric Guide Ring.
+ *       • Inner Illuminated Core Badge (76x76) featuring bold "BAIUST" & "IC CHECKER".
+ *       • Left Flank: Live animated "CLK" logic pulse waveform card.
+ *       • Right Flank: Live animated "BUS" digital data stream card.
+ *   - Bottom Diagnostic Dock (y=194..234): Slim floating mint card with neon progress bar & live logs.
  */
 
 #include "ui_splash.h"
@@ -24,134 +20,150 @@
 #include <cstdio>
 
 // ─── State ────────────────────────────────────────────────────────────────
-static lv_obj_t *scr_splash      = nullptr;
-static lv_obj_t *chip_body       = nullptr;
-static lv_obj_t *lbl_chip_brand  = nullptr;
-static lv_obj_t *lbl_chip_sub    = nullptr;
-static lv_obj_t *bar_boot        = nullptr;
-static lv_obj_t *lbl_status      = nullptr;
-static lv_obj_t *lbl_percent     = nullptr;
-static lv_obj_t *dot_status      = nullptr;
+static lv_obj_t *scr_splash        = nullptr;
+static lv_obj_t *spinner_radar     = nullptr;
+static lv_obj_t *core_circle       = nullptr;
+static lv_obj_t *lbl_wave_clk      = nullptr;
+static lv_obj_t *lbl_wave_data     = nullptr;
+static lv_obj_t *bar_boot          = nullptr;
+static lv_obj_t *lbl_status        = nullptr;
+static lv_obj_t *lbl_percent       = nullptr;
+static lv_obj_t *dot_radar         = nullptr;
 
-// 16 Pins for DIP-16 IC
-static lv_obj_t *pins_top[8]     = {nullptr};
-static lv_obj_t *pins_bot[8]     = {nullptr};
+static lv_timer_t *t_wave_anim     = nullptr;
+static lv_timer_t *t_boot_seq      = nullptr;
 
-static lv_timer_t *t_boot_seq    = nullptr;
-static lv_timer_t *t_pin_anim    = nullptr;
-static uint8_t boot_progress     = 0;
-static uint8_t active_pin_idx    = 0;
+static uint8_t  progress_val       = 0;
+static uint16_t wave_tick          = 0;
 
-// ─── Boot Diagnostic Messages ─────────────────────────────────────────────
-static const char *boot_msgs[] = {
-    "BOOT: ESP32-S3 Core @ 240MHz",
-    "MEM: 16MB Flash + PSRAM OK",
-    "CORE: 74xx / 40xx Logic Loaded",
-    "BUS: ZIF-16 Socket Active",
-    "SYSTEM: BAIUST Ready!",
+// ─── Oscilloscope Waveform Frames ─────────────────────────────────────────
+static const char *clk_frames[] = {
+    "_ - _ - _",
+    "- _ - _ -",
 };
-constexpr uint8_t NUM_BOOT_MSGS = sizeof(boot_msgs) / sizeof(boot_msgs[0]);
 
-// ─── Pin Wave Scanning Animation ──────────────────────────────────────────
-static void pin_scan_anim_cb(lv_timer_t *t) {
+static const char *data_frames[] = {
+    "--__--_",
+    "_--__--",
+    "__--__-",
+    "-__--__",
+};
+constexpr uint8_t NUM_DATA_FRAMES = sizeof(data_frames) / sizeof(data_frames[0]);
+
+// ─── Boot Diagnostic Logs ─────────────────────────────────────────────────
+static const char *diag_logs[] = {
+    ">> RADAR: INITIALIZING BUS...",
+    ">> OSC: 240MHz CLOCK LOCKED",
+    ">> MEM: 16MB FLASH + PSRAM OK",
+    ">> ZIF-16: VOLTAGE STABILIZED",
+    ">> SYSTEM ONLINE // BAIUST READY",
+};
+constexpr uint8_t NUM_DIAG_LOGS = sizeof(diag_logs) / sizeof(diag_logs[0]);
+
+// ─── Live Waveform & Pulse Animation (fires every 80ms) ───────────────────
+static void wave_anim_cb(lv_timer_t *t) {
     (void)t;
     if (!scr_splash) return;
 
-    // Reset previous pins to default inactive color
-    for (int i = 0; i < 8; i++) {
-        if (pins_top[i]) {
-            lv_obj_set_style_bg_color(pins_top[i], CLR_BLUE_DIM, 0);
-            lv_obj_set_style_shadow_width(pins_top[i], 0, 0);
-        }
-        if (pins_bot[i]) {
-            lv_obj_set_style_bg_color(pins_bot[i], CLR_BLUE_DIM, 0);
-            lv_obj_set_style_shadow_width(pins_bot[i], 0, 0);
-        }
+    wave_tick++;
+
+    // 1. Animate CLK wave
+    if (lbl_wave_clk) {
+        lv_label_set_text(lbl_wave_clk, clk_frames[wave_tick % 2]);
     }
 
-    // Highlight current active pin with bright neon green
-    uint8_t current_top = active_pin_idx;
-    uint8_t current_bot = 7 - active_pin_idx; // Reverse scan on bottom to simulate loop
-
-    if (pins_top[current_top]) {
-        lv_obj_set_style_bg_color(pins_top[current_top], CLR_NEON, 0);
-        lv_obj_set_style_shadow_color(pins_top[current_top], CLR_NEON, 0);
-        lv_obj_set_style_shadow_width(pins_top[current_top], 6, 0);
-        lv_obj_set_style_shadow_opa(pins_top[current_top], LV_OPA_COVER, 0);
-    }
-    if (pins_bot[current_bot]) {
-        lv_obj_set_style_bg_color(pins_bot[current_bot], CLR_NEON, 0);
-        lv_obj_set_style_shadow_color(pins_bot[current_bot], CLR_NEON, 0);
-        lv_obj_set_style_shadow_width(pins_bot[current_bot], 6, 0);
-        lv_obj_set_style_shadow_opa(pins_bot[current_bot], LV_OPA_COVER, 0);
+    // 2. Animate BUS data stream
+    if (lbl_wave_data) {
+        lv_label_set_text(lbl_wave_data, data_frames[wave_tick % NUM_DATA_FRAMES]);
     }
 
-    active_pin_idx = (active_pin_idx + 1) % 8;
-
-    // Blinking status dot in HUD
-    if (dot_status) {
-        bool on = (active_pin_idx % 2 == 0);
-        lv_obj_set_style_bg_color(dot_status, on ? CLR_NEON : CLR_TEXT_DIM, 0);
+    // 3. Pulse radar status indicator dot
+    if (dot_radar) {
+        bool on = (wave_tick % 2 == 0);
+        lv_obj_set_style_bg_color(dot_radar, on ? CLR_NEON : CLR_TEXT_DIM, 0);
     }
 }
 
-// ─── Main Boot Sequence Timer (runs every ~35ms) ──────────────────────────
+// ─── Main Boot Sequencer (fires every 45ms) ───────────────────────────────
 static void boot_sequence_cb(lv_timer_t *t) {
     (void)t;
     if (!scr_splash) return;
 
-    boot_progress += 2;
+    progress_val += 2;
 
-    if (boot_progress <= 100) {
+    if (progress_val <= 100) {
         // Update bar
         if (bar_boot) {
-            lv_bar_set_value(bar_boot, boot_progress, LV_ANIM_OFF);
+            lv_bar_set_value(bar_boot, progress_val, LV_ANIM_OFF);
         }
 
-        // Update percentage
+        // Update percentage label
         if (lbl_percent) {
             char buf[12];
-            snprintf(buf, sizeof(buf), "%d%%", boot_progress);
+            snprintf(buf, sizeof(buf), "%d%%", progress_val);
             lv_label_set_text(lbl_percent, buf);
         }
 
-        // Update log text based on progress
+        // Update diagnostic message
         if (lbl_status) {
-            uint8_t msg_idx = (boot_progress * (NUM_BOOT_MSGS - 1)) / 100;
-            if (msg_idx >= NUM_BOOT_MSGS) msg_idx = NUM_BOOT_MSGS - 1;
-            lv_label_set_text(lbl_status, boot_msgs[msg_idx]);
+            uint8_t msg_idx = (progress_val * (NUM_DIAG_LOGS - 1)) / 100;
+            if (msg_idx >= NUM_DIAG_LOGS) msg_idx = NUM_DIAG_LOGS - 1;
+            lv_label_set_text(lbl_status, diag_logs[msg_idx]);
         }
     } else {
         // Boot completed — stop timers
+        if (t_wave_anim) {
+            lv_timer_del(t_wave_anim);
+            t_wave_anim = nullptr;
+        }
         if (t_boot_seq) {
             lv_timer_del(t_boot_seq);
             t_boot_seq = nullptr;
         }
-        if (t_pin_anim) {
-            lv_timer_del(t_pin_anim);
-            t_pin_anim = nullptr;
-        }
 
-        // Melodic boot chirp
-        buzzer_hal_tone(1046, 40); // C6
-        buzzer_hal_tone(1318, 60); // E6
+        // Ascending melodic power-on chime
+        buzzer_hal_tone(880, 40);
+        buzzer_hal_tone(1175, 50);
+        buzzer_hal_tone(1568, 70);
 
         // Transition to Home Screen
         ui_home_show();
     }
 }
 
+// ─── Helper: Draw Cyberpunk HUD Corner Brackets ───────────────────────────
+static void draw_hud_corner(lv_obj_t *parent, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs, bool left, bool top) {
+    const lv_coord_t SZ = 12;
+    const lv_coord_t TH = 2;
+
+    // Horizontal line
+    lv_obj_t *h = lv_obj_create(parent);
+    lv_obj_set_size(h, SZ, TH);
+    lv_obj_align(h, align, x_ofs, y_ofs);
+    lv_obj_set_style_bg_color(h, CLR_NEON, 0);
+    lv_obj_set_style_bg_opa(h, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(h, 0, 0);
+
+    // Vertical line
+    lv_obj_t *v = lv_obj_create(parent);
+    lv_obj_set_size(v, TH, SZ);
+    lv_obj_align(v, align, left ? x_ofs : (x_ofs - TH + SZ), top ? y_ofs : (y_ofs - SZ + TH));
+    lv_obj_set_style_bg_color(v, CLR_NEON, 0);
+    lv_obj_set_style_bg_opa(v, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(v, 0, 0);
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────
 void ui_splash_show(void) {
-    boot_progress  = 0;
-    active_pin_idx = 0;
+    progress_val = 0;
+    wave_tick    = 0;
 
     // 1. Create screen with Solid Emerald Canvas
     scr_splash = lv_obj_create(nullptr);
     theme_apply_screen(scr_splash);
     lv_scr_load(scr_splash);
 
-    // 2. Subtle Circuit Grid Lines in Background
+    // 2. Subtle Background Grid Lines
     for (int i = 1; i <= 5; i++) {
         lv_obj_t *line = lv_obj_create(scr_splash);
         lv_obj_set_size(line, DISPLAY_WIDTH, 1);
@@ -161,170 +173,218 @@ void ui_splash_show(void) {
         lv_obj_set_style_border_width(line, 0, 0);
     }
 
-    // 3. Futuristic HUD Top Bar
-    lv_obj_t *hud_cont = lv_obj_create(scr_splash);
-    lv_obj_set_size(hud_cont, DISPLAY_WIDTH - 20, 24);
-    lv_obj_align(hud_cont, LV_ALIGN_TOP_MID, 0, 8);
-    lv_obj_set_style_bg_opa(hud_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(hud_cont, 0, 0);
-    lv_obj_set_style_pad_all(hud_cont, 0, 0);
-    lv_obj_clear_flag(hud_cont, LV_OBJ_FLAG_SCROLLABLE);
+    // 3. Cyberpunk HUD Corner Brackets
+    draw_hud_corner(scr_splash, LV_ALIGN_TOP_LEFT,     6,  6, true,  true);
+    draw_hud_corner(scr_splash, LV_ALIGN_TOP_RIGHT,   -6,  6, false, true);
+    draw_hud_corner(scr_splash, LV_ALIGN_BOTTOM_LEFT,  6, -6, true,  false);
+    draw_hud_corner(scr_splash, LV_ALIGN_BOTTOM_RIGHT, -6, -6, false, false);
 
-    // Blinking LED indicator
-    dot_status = lv_obj_create(hud_cont);
-    lv_obj_set_size(dot_status, 8, 8);
-    lv_obj_align(dot_status, LV_ALIGN_LEFT_MID, 4, 0);
-    lv_obj_set_style_radius(dot_status, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(dot_status, CLR_NEON, 0);
-    lv_obj_set_style_border_width(dot_status, 0, 0);
+    // 4. Top HUD Header (Compact & No-Overlap Layout)
+    lv_obj_t *hud_bar = lv_obj_create(scr_splash);
+    lv_obj_set_size(hud_bar, DISPLAY_WIDTH - 24, 20);
+    lv_obj_align(hud_bar, LV_ALIGN_TOP_MID, 0, 6);
+    lv_obj_set_style_bg_opa(hud_bar, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(hud_bar, 0, 0);
+    lv_obj_set_style_pad_all(hud_bar, 0, 0);
+    lv_obj_clear_flag(hud_bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    // HUD Title
-    lv_obj_t *lbl_hud_title = lv_label_create(hud_cont);
-    lv_label_set_text(lbl_hud_title, "BAIUST  ::  SYSTEM BOOT");
+    // Blinking status LED
+    dot_radar = lv_obj_create(hud_bar);
+    lv_obj_set_size(dot_radar, 8, 8);
+    lv_obj_align(dot_radar, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_set_style_radius(dot_radar, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot_radar, CLR_NEON, 0);
+    lv_obj_set_style_border_width(dot_radar, 0, 0);
+
+    // Header Title (Left side)
+    lv_obj_t *lbl_hud_title = lv_label_create(hud_bar);
+    lv_label_set_text(lbl_hud_title, "BAIUST LAB");
     lv_obj_set_style_text_font(lbl_hud_title, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_hud_title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_hud_title, LV_ALIGN_LEFT_MID, 18, 0);
 
-    // HUD Version / Badge
-    lv_obj_t *lbl_hud_ver = lv_label_create(hud_cont);
-    lv_label_set_text(lbl_hud_ver, "ESP32-S3 [v1.0]");
-    lv_obj_set_style_text_font(lbl_hud_ver, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_hud_ver, CLR_BLUE_DIM, 0);
-    lv_obj_align(lbl_hud_ver, LV_ALIGN_RIGHT_MID, -4, 0);
+    // Header Telemetry Badge (Right side)
+    lv_obj_t *lbl_hud_telemetry = lv_label_create(hud_bar);
+    lv_label_set_text(lbl_hud_telemetry, "ESP32-S3 [240MHz]");
+    lv_obj_set_style_text_font(lbl_hud_telemetry, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_hud_telemetry, CLR_BLUE_DIM, 0);
+    lv_obj_align(lbl_hud_telemetry, LV_ALIGN_RIGHT_MID, -4, 0);
 
     // Divider Line below HUD
     lv_obj_t *hud_div = lv_obj_create(scr_splash);
     lv_obj_set_size(hud_div, DISPLAY_WIDTH - 24, 1);
-    lv_obj_align(hud_div, LV_ALIGN_TOP_MID, 0, 32);
+    lv_obj_align(hud_div, LV_ALIGN_TOP_MID, 0, 26);
     lv_obj_set_style_bg_color(hud_div, CLR_SEPARATOR, 0);
-    lv_obj_set_style_bg_opa(hud_div, LV_OPA_50, 0);
+    lv_obj_set_style_bg_opa(hud_div, LV_OPA_40, 0);
     lv_obj_set_style_border_width(hud_div, 0, 0);
 
-    // 4. Center High-Tech DIP-16 IC Graphic
-    const lv_coord_t CHIP_W = 168;
-    const lv_coord_t CHIP_H = 62;
-    const lv_coord_t CHIP_CY = 96;
+    // 5. Centerpiece: Optical Center Y = 106px (perfect vertical center between header and footer)
+    const lv_coord_t CENTER_Y = 106;
 
-    // IC Metallic Pins (8 Top & 8 Bottom)
-    const lv_coord_t PIN_W = 8;
-    const lv_coord_t PIN_H = 8;
-    const lv_coord_t PIN_SPACING = 18;
-    const lv_coord_t PIN_START_X = -((7 * PIN_SPACING) / 2);
+    // Outer Crosshair Reticle Lines through Center
+    lv_obj_t *ch_h = lv_obj_create(scr_splash);
+    lv_obj_set_size(ch_h, 150, 1);
+    lv_obj_set_pos(ch_h, (DISPLAY_WIDTH - 150) / 2, CENTER_Y);
+    lv_obj_set_style_bg_color(ch_h, CLR_CYAN, 0);
+    lv_obj_set_style_bg_opa(ch_h, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(ch_h, 0, 0);
 
-    for (int i = 0; i < 8; i++) {
-        lv_coord_t px = PIN_START_X + (i * PIN_SPACING);
+    lv_obj_t *ch_v = lv_obj_create(scr_splash);
+    lv_obj_set_size(ch_v, 1, 130);
+    lv_obj_set_pos(ch_v, DISPLAY_WIDTH / 2, CENTER_Y - 65);
+    lv_obj_set_style_bg_color(ch_v, CLR_CYAN, 0);
+    lv_obj_set_style_bg_opa(ch_v, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(ch_v, 0, 0);
 
-        // Top Pin
-        pins_top[i] = lv_obj_create(scr_splash);
-        lv_obj_set_size(pins_top[i], PIN_W, PIN_H);
-        lv_obj_align(pins_top[i], LV_ALIGN_CENTER, px, CHIP_CY - 33);
-        lv_obj_set_style_bg_color(pins_top[i], CLR_BLUE_DIM, 0);
-        lv_obj_set_style_radius(pins_top[i], 2, 0);
-        lv_obj_set_style_border_width(pins_top[i], 0, 0);
+    // Concentric Guide Ring (Outer)
+    lv_obj_t *guide_ring = lv_obj_create(scr_splash);
+    lv_obj_set_size(guide_ring, 126, 126);
+    lv_obj_set_pos(guide_ring, (DISPLAY_WIDTH - 126) / 2, CENTER_Y - 63);
+    lv_obj_set_style_radius(guide_ring, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(guide_ring, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_color(guide_ring, CLR_CYAN, 0);
+    lv_obj_set_style_border_width(guide_ring, 1, 0);
+    lv_obj_set_style_border_opa(guide_ring, LV_OPA_50, 0);
+    lv_obj_clear_flag(guide_ring, LV_OBJ_FLAG_CLICKABLE);
 
-        // Bottom Pin
-        pins_bot[i] = lv_obj_create(scr_splash);
-        lv_obj_set_size(pins_bot[i], PIN_W, PIN_H);
-        lv_obj_align(pins_bot[i], LV_ALIGN_CENTER, px, CHIP_CY + 33);
-        lv_obj_set_style_bg_color(pins_bot[i], CLR_BLUE_DIM, 0);
-        lv_obj_set_style_radius(pins_bot[i], 2, 0);
-        lv_obj_set_style_border_width(pins_bot[i], 0, 0);
-    }
+    // 360° Rotating Holographic Radar Spinner (faster 850ms period)
+    spinner_radar = lv_spinner_create(scr_splash, 850, 75);
+    lv_obj_set_size(spinner_radar, 114, 114);
+    lv_obj_set_pos(spinner_radar, (DISPLAY_WIDTH - 114) / 2, CENTER_Y - 57);
+    lv_obj_set_style_arc_color(spinner_radar, CLR_CYAN, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(spinner_radar, 2, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(spinner_radar, CLR_NEON, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(spinner_radar, 4, LV_PART_INDICATOR);
+    lv_obj_clear_flag(spinner_radar, LV_OBJ_FLAG_CLICKABLE);
 
-    // IC Silicon Body
-    chip_body = lv_obj_create(scr_splash);
-    lv_obj_set_size(chip_body, CHIP_W, CHIP_H);
-    lv_obj_align(chip_body, LV_ALIGN_CENTER, 0, CHIP_CY);
-    lv_obj_set_style_bg_color(chip_body, lv_color_hex(0x022C22), 0); // Dark silicon
-    lv_obj_set_style_bg_opa(chip_body, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(chip_body, CLR_NEON, 0);
-    lv_obj_set_style_border_width(chip_body, 2, 0);
-    lv_obj_set_style_radius(chip_body, 8, 0);
-    lv_obj_set_style_shadow_color(chip_body, CLR_NEON, 0);
-    lv_obj_set_style_shadow_width(chip_body, 14, 0);
-    lv_obj_set_style_shadow_opa(chip_body, LV_OPA_40, 0);
-    lv_obj_clear_flag(chip_body, LV_OBJ_FLAG_SCROLLABLE);
+    // Center Illuminated Silicon Core Badge
+    core_circle = lv_obj_create(scr_splash);
+    lv_obj_set_size(core_circle, 78, 78);
+    lv_obj_set_pos(core_circle, (DISPLAY_WIDTH - 78) / 2, CENTER_Y - 39);
+    lv_obj_set_style_radius(core_circle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(core_circle, lv_color_hex(0x022C22), 0); // Dark silicon
+    lv_obj_set_style_bg_opa(core_circle, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(core_circle, CLR_NEON, 0);
+    lv_obj_set_style_border_width(core_circle, 2, 0);
+    lv_obj_set_style_shadow_color(core_circle, CLR_NEON, 0);
+    lv_obj_set_style_shadow_width(core_circle, 16, 0);
+    lv_obj_set_style_shadow_opa(core_circle, LV_OPA_60, 0);
+    lv_obj_clear_flag(core_circle, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Pin 1 Notch on Left Edge of Chip
-    lv_obj_t *chip_notch = lv_obj_create(chip_body);
-    lv_obj_set_size(chip_notch, 8, 14);
-    lv_obj_align(chip_notch, LV_ALIGN_LEFT_MID, -6, 0);
-    lv_obj_set_style_bg_color(chip_notch, CLR_BG, 0);
-    lv_obj_set_style_border_color(chip_notch, CLR_NEON, 0);
-    lv_obj_set_style_border_width(chip_notch, 1, 0);
-    lv_obj_set_style_radius(chip_notch, 4, 0);
+    // Core Brand Text
+    lv_obj_t *lbl_brand = lv_label_create(core_circle);
+    lv_label_set_text(lbl_brand, "BAIUST");
+    lv_obj_set_style_text_font(lbl_brand, FONT_MEDIUM, 0);
+    lv_obj_set_style_text_color(lbl_brand, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_letter_space(lbl_brand, 1, 0);
+    lv_obj_align(lbl_brand, LV_ALIGN_CENTER, 0, -8);
 
-    // Laser-Engraved Branding Text on Chip
-    lbl_chip_brand = lv_label_create(chip_body);
-    lv_label_set_text(lbl_chip_brand, "BAIUST");
-    lv_obj_set_style_text_font(lbl_chip_brand, FONT_LARGE, 0);
-    lv_obj_set_style_text_color(lbl_chip_brand, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_letter_space(lbl_chip_brand, 3, 0);
-    lv_obj_align(lbl_chip_brand, LV_ALIGN_CENTER, 4, -9);
+    lv_obj_t *lbl_sub = lv_label_create(core_circle);
+    lv_label_set_text(lbl_sub, "IC TESTER");
+    lv_obj_set_style_text_font(lbl_sub, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_sub, CLR_NEON, 0);
+    lv_obj_align(lbl_sub, LV_ALIGN_CENTER, 0, 10);
 
-    lbl_chip_sub = lv_label_create(chip_body);
-    lv_label_set_text(lbl_chip_sub, "IC CHECKER");
-    lv_obj_set_style_text_font(lbl_chip_sub, FONT_TINY, 0);
-    lv_obj_set_style_text_color(lbl_chip_sub, CLR_NEON, 0);
-    lv_obj_set_style_text_letter_space(lbl_chip_sub, 2, 0);
-    lv_obj_align(lbl_chip_sub, LV_ALIGN_CENTER, 4, 13);
+    // 6. Oscilloscope Waveform Flank Cards (Left & Right)
+    // Left Flank (CLK Channel)
+    lv_obj_t *card_clk = lv_obj_create(scr_splash);
+    lv_obj_set_size(card_clk, 66, 42);
+    lv_obj_set_pos(card_clk, 14, CENTER_Y - 21);
+    lv_obj_set_style_bg_color(card_clk, lv_color_hex(0x022C22), 0);
+    lv_obj_set_style_bg_opa(card_clk, LV_OPA_80, 0);
+    lv_obj_set_style_border_color(card_clk, CLR_CYAN, 0);
+    lv_obj_set_style_border_width(card_clk, 1, 0);
+    lv_obj_set_style_radius(card_clk, 6, 0);
+    lv_obj_set_style_pad_all(card_clk, 2, 0);
+    lv_obj_clear_flag(card_clk, LV_OBJ_FLAG_SCROLLABLE);
 
-    // 5. Floating Mint Diagnostic Card at Bottom
+    lv_obj_t *lbl_clk_tag = lv_label_create(card_clk);
+    lv_label_set_text(lbl_clk_tag, "CLK [CH1]");
+    lv_obj_set_style_text_font(lbl_clk_tag, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_clk_tag, CLR_BLUE_DIM, 0);
+    lv_obj_align(lbl_clk_tag, LV_ALIGN_TOP_MID, 0, 2);
+
+    lbl_wave_clk = lv_label_create(card_clk);
+    lv_label_set_text(lbl_wave_clk, clk_frames[0]);
+    lv_obj_set_style_text_font(lbl_wave_clk, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_wave_clk, CLR_NEON, 0);
+    lv_obj_align(lbl_wave_clk, LV_ALIGN_BOTTOM_MID, 0, -2);
+
+    // Right Flank (BUS Channel)
+    lv_obj_t *card_data = lv_obj_create(scr_splash);
+    lv_obj_set_size(card_data, 66, 42);
+    lv_obj_set_pos(card_data, DISPLAY_WIDTH - 14 - 66, CENTER_Y - 21);
+    lv_obj_set_style_bg_color(card_data, lv_color_hex(0x022C22), 0);
+    lv_obj_set_style_bg_opa(card_data, LV_OPA_80, 0);
+    lv_obj_set_style_border_color(card_data, CLR_CYAN, 0);
+    lv_obj_set_style_border_width(card_data, 1, 0);
+    lv_obj_set_style_radius(card_data, 6, 0);
+    lv_obj_set_style_pad_all(card_data, 2, 0);
+    lv_obj_clear_flag(card_data, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *lbl_bus_tag = lv_label_create(card_data);
+    lv_label_set_text(lbl_bus_tag, "BUS [CH2]");
+    lv_obj_set_style_text_font(lbl_bus_tag, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_bus_tag, CLR_BLUE_DIM, 0);
+    lv_obj_align(lbl_bus_tag, LV_ALIGN_TOP_MID, 0, 2);
+
+    lbl_wave_data = lv_label_create(card_data);
+    lv_label_set_text(lbl_wave_data, data_frames[0]);
+    lv_obj_set_style_text_font(lbl_wave_data, FONT_TINY, 0);
+    lv_obj_set_style_text_color(lbl_wave_data, CLR_NEON, 0);
+    lv_obj_align(lbl_wave_data, LV_ALIGN_BOTTOM_MID, 0, -2);
+
+    // 7. Bottom Floating Diagnostic Card (y=182..234, Height=52px)
     lv_obj_t *diag_card = lv_obj_create(scr_splash);
-    lv_obj_set_size(diag_card, DISPLAY_WIDTH - 24, 66);
-    lv_obj_align(diag_card, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_set_size(diag_card, DISPLAY_WIDTH - 24, 52);
+    lv_obj_align(diag_card, LV_ALIGN_BOTTOM_MID, 0, -6);
     theme_apply_panel(diag_card);
-    lv_obj_set_style_pad_all(diag_card, 6, 0);
+    lv_obj_set_style_pad_all(diag_card, 4, 0);
     lv_obj_clear_flag(diag_card, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Progress Bar + Percentage Row
+    // Top Row: Progress Bar + Percentage
     bar_boot = lv_bar_create(diag_card);
-    lv_obj_set_size(bar_boot, 230, 8);
-    lv_obj_align(bar_boot, LV_ALIGN_TOP_LEFT, 6, 6);
+    lv_obj_set_size(bar_boot, 230, 6);
+    lv_obj_align(bar_boot, LV_ALIGN_TOP_LEFT, 6, 4);
     lv_bar_set_range(bar_boot, 0, 100);
     lv_bar_set_value(bar_boot, 0, LV_ANIM_OFF);
 
-    // Bar Styling
     lv_obj_set_style_bg_color(bar_boot, CLR_BLUE_GLOW, LV_PART_MAIN);
     lv_obj_set_style_border_color(bar_boot, CLR_BLUE_DIM, LV_PART_MAIN);
     lv_obj_set_style_border_width(bar_boot, 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(bar_boot, 4, LV_PART_MAIN);
+    lv_obj_set_style_radius(bar_boot, 3, LV_PART_MAIN);
 
     lv_obj_set_style_bg_color(bar_boot, CLR_BG_DARK, LV_PART_INDICATOR);
     lv_obj_set_style_bg_grad_color(bar_boot, CLR_NEON, LV_PART_INDICATOR);
     lv_obj_set_style_bg_grad_dir(bar_boot, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
-    lv_obj_set_style_radius(bar_boot, 4, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(bar_boot, 3, LV_PART_INDICATOR);
 
-    // Percentage Label
     lbl_percent = lv_label_create(diag_card);
     lv_label_set_text(lbl_percent, "0%");
     lv_obj_set_style_text_font(lbl_percent, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_percent, CLR_TEXT, 0);
-    lv_obj_align(lbl_percent, LV_ALIGN_TOP_RIGHT, -6, 4);
+    lv_obj_align(lbl_percent, LV_ALIGN_TOP_RIGHT, -6, 1);
 
-    // Diagnostic Terminal Message Log
+    // Bottom Row: Live Diagnostic Text
     lbl_status = lv_label_create(diag_card);
-    lv_label_set_text(lbl_status, boot_msgs[0]);
+    lv_label_set_text(lbl_status, diag_logs[0]);
     lv_obj_set_style_text_font(lbl_status, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_status, CLR_TEXT_DIM, 0);
-    lv_obj_align(lbl_status, LV_ALIGN_BOTTOM_LEFT, 6, -4);
+    lv_obj_align(lbl_status, LV_ALIGN_BOTTOM_LEFT, 6, -2);
 
-    // 6. Start Animated Timers
-    // Pin scanning runs every 120ms
-    t_pin_anim = lv_timer_create(pin_scan_anim_cb, 120, nullptr);
-
-    // Boot progress advances every ~45ms (~2.2s total smooth boot)
-    t_boot_seq = lv_timer_create(boot_sequence_cb, 45, nullptr);
+    // 8. Start Animation Timers (30% faster boot sequence ~1.5s total)
+    t_wave_anim = lv_timer_create(wave_anim_cb, 55, nullptr);
+    t_boot_seq  = lv_timer_create(boot_sequence_cb, 30, nullptr);
 }
 
 void ui_splash_destroy(void) {
+    if (t_wave_anim) {
+        lv_timer_del(t_wave_anim);
+        t_wave_anim = nullptr;
+    }
     if (t_boot_seq) {
         lv_timer_del(t_boot_seq);
         t_boot_seq = nullptr;
-    }
-    if (t_pin_anim) {
-        lv_timer_del(t_pin_anim);
-        t_pin_anim = nullptr;
     }
     if (scr_splash) {
         lv_obj_del(scr_splash);
