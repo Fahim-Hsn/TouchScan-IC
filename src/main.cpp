@@ -31,8 +31,12 @@ static uint32_t lv_last_tick = 0;
 
 // ─── Setup ────────────────────────────────────────────────────────────────
 void setup(void) {
+    // 0. Force backlight pin LOW immediately to kill any raw VRAM boot glitch/flash
+    pinMode(TFT_BL_GPIO, OUTPUT);
+    digitalWrite(TFT_BL_GPIO, LOW);
+
     Serial.begin(115200);
-    delay(100);
+    delay(50);
     Serial.println("\n============================================");
     Serial.println("   Digital IC Checker | ESP32-S3 N16R8");
     Serial.println("   Firmware v1.1.0");
@@ -42,7 +46,7 @@ void setup(void) {
     lv_init();
     lv_last_tick = millis();
 
-    // 2. Display + touch (registers LVGL display and input drivers)
+    // 2. Display + touch (registers LVGL display and input drivers, screen kept dark)
     tft_hal_init();
 
     // 3. ZIF socket GPIO (safe high-Z state)
@@ -59,6 +63,13 @@ void setup(void) {
 
     // 7. Show splash screen (transitions to Home automatically)
     ui_splash_show();
+
+    // 8. Render the very first pristine frame to the ST7789 display buffer
+    lv_task_handler();
+    delay(20);
+
+    // 9. Now safely turn on backlight with user brightness (100% clean & glitch-free)
+    tft_hal_set_brightness(90);
 
     Serial.println("[MAIN] Setup complete. Entering LVGL loop.");
 }

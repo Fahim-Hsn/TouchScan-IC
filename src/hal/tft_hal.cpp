@@ -129,10 +129,10 @@ void tft_hal_init(void) {
     }
     ts.setRotation(1);
 
-    // --- Backlight via LEDC ---
+    // --- Backlight via LEDC (initialize at 0 / OFF to prevent power-on flash) ---
     ledcSetup(BL_LEDC_CH, BL_LEDC_FREQ, BL_LEDC_RES);
     ledcAttachPin(TFT_BL_GPIO, BL_LEDC_CH);
-    tft_hal_set_brightness(90);
+    ledcWrite(BL_LEDC_CH, 0); // Keep display dark until first frame is rendered
 
     // --- Register LVGL display driver ---
     lv_disp_draw_buf_init(&disp_draw_buf, fb_buf, nullptr, DISPLAY_WIDTH * 60);
