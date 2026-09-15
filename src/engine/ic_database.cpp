@@ -210,6 +210,38 @@ static const ICDescriptor ic_7486 = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  7411 — Triple 3-Input AND Gate (DIP-14)
+//  Pinout: 1A-1, 1B-2, 2A-3, 2B-4, 2C-5, 2Y-6, GND-7,
+//           3Y-8, 3A-9, 3B-10, 3C-11, 1Y-12, 1C-13, VCC-14
+// ═══════════════════════════════════════════════════════════════════════════
+static const ICPin pins_7411[] = {
+    {  1, PinRole::PIN_IN,  "1A"  },
+    {  2, PinRole::PIN_IN,  "1B"  },
+    {  3, PinRole::PIN_IN,  "2A"  },
+    {  4, PinRole::PIN_IN,  "2B"  },
+    {  5, PinRole::PIN_IN,  "2C"  },
+    {  6, PinRole::PIN_OUT, "2Y"  },
+    {  7, PinRole::GND,    "GND" },
+    {  8, PinRole::PIN_OUT, "3Y"  },
+    {  9, PinRole::PIN_IN,  "3A"  },
+    { 10, PinRole::PIN_IN,  "3B"  },
+    { 11, PinRole::PIN_IN,  "3C"  },
+    { 12, PinRole::PIN_OUT, "1Y"  },
+    { 13, PinRole::PIN_IN,  "1C"  },
+    { 14, PinRole::VCC,    "VCC" },
+};
+static const ICGate gates_7411[] = {
+    { 1, GateType::AND, { 1,  2, 13}, 12, 3 },
+    { 2, GateType::AND, { 3,  4,  5},  6, 3 },
+    { 3, GateType::AND, { 9, 10, 11},  8, 3 },
+};
+static const ICDescriptor ic_7411 = {
+    "7411", "Triple 3-Input AND Gate",
+    "3x 3-input AND gates, active-high output",
+    14, 3, pins_7411, gates_7411, 14, 7
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  Database
 // ═══════════════════════════════════════════════════════════════════════════
 static const ICDescriptor *ic_database[] = {
@@ -217,6 +249,7 @@ static const ICDescriptor *ic_database[] = {
     &ic_7400,
     &ic_7402,
     &ic_7404,
+    &ic_7411,
     &ic_7432,
     &ic_7486,
 };
@@ -224,7 +257,16 @@ constexpr uint8_t IC_DB_SIZE = sizeof(ic_database) / sizeof(ic_database[0]);
 
 // ─── API Implementation ───────────────────────────────────────────────────
 
-uint8_t ic_db_compute_expected(GateType type, uint8_t a, uint8_t b) {
+uint8_t ic_db_compute_expected(GateType type, uint8_t a, uint8_t b, uint8_t c, uint8_t num_inputs) {
+    if (num_inputs == 3) {
+        switch (type) {
+            case GateType::AND:    return (a & b & c);
+            case GateType::NAND:   return !(a & b & c);
+            case GateType::OR:     return (a | b | c);
+            case GateType::NOR:    return !(a | b | c);
+            default: break;
+        }
+    }
     switch (type) {
         case GateType::AND:    return a & b;
         case GateType::OR:     return a | b;

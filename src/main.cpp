@@ -35,7 +35,7 @@ void setup(void) {
     delay(100);
     Serial.println("\n============================================");
     Serial.println("   Digital IC Checker | ESP32-S3 N16R8");
-    Serial.println("   Firmware v1.0.0");
+    Serial.println("   Firmware v1.1.0");
     Serial.println("============================================\n");
 
     // 1. LVGL must be initialised first

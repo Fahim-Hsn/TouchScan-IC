@@ -14,19 +14,20 @@
 struct TTRowResult {
     uint8_t input_a;     // Applied input A
     uint8_t input_b;     // Applied input B (0 if NOT gate)
+    uint8_t input_c;     // Applied input C (0 if <= 2 inputs)
     uint8_t expected;    // Expected output
     uint8_t actual;      // Measured output
     bool    pass;        // expected == actual
 };
 
-/** Per-gate result (up to 4 combinations for 2-input, 2 for NOT) */
+/** Per-gate result (up to 8 combinations for 3-input, 4 for 2-input, 2 for NOT) */
 struct GateResult {
     uint8_t     gate_id;          // 1-based gate number
     bool        gate_pass;        // True if ALL rows pass
     uint8_t     num_rows;         // Number of truth table rows
-    TTRowResult rows[4];          // Max 4 rows (2-input gate: 4 combinations)
+    TTRowResult rows[8];          // Max 8 rows (3-input gate: 8 combinations)
     uint8_t     output_pin;       // ZIF output pin number for this gate
-    uint8_t     input_pins[2];    // ZIF input pin numbers
+    uint8_t     input_pins[3];    // ZIF input pin numbers
     GateType    type;
 };
 

@@ -72,10 +72,12 @@ bool ic_tester_run(
         gr.output_pin = gate.output_pin;
         gr.input_pins[0] = gate.input_pins[0];
         gr.input_pins[1] = gate.input_pins[1];
+        gr.input_pins[2] = gate.input_pins[2];
 
         uint8_t phys_out = physical_zif(gate.output_pin, pc);
         uint8_t phys_in0 = physical_zif(gate.input_pins[0], pc);
         uint8_t phys_in1 = gate.num_inputs > 1 ? physical_zif(gate.input_pins[1], pc) : 0;
+        uint8_t phys_in2 = gate.num_inputs > 2 ? physical_zif(gate.input_pins[2], pc) : 0;
 
         // Configure output pin as DUT_OUTPUT (read from IC)
         zif_hal_configure(phys_out, ZIFPinRole::DUT_OUTPUT);
@@ -85,30 +87,37 @@ bool ic_tester_run(
         if (phys_in1 != 0) {
             zif_hal_configure(phys_in1, ZIFPinRole::DUT_INPUT, false);
         }
+        if (phys_in2 != 0) {
+            zif_hal_configure(phys_in2, ZIFPinRole::DUT_INPUT, false);
+        }
 
         // --- Truth table: iterate all input combinations ---
-        uint8_t num_combos = (gate.num_inputs == 1) ? 2 : 4;
+        uint8_t num_combos = (gate.num_inputs == 1) ? 2 : (gate.num_inputs == 2 ? 4 : 8);
         gr.num_rows = num_combos;
 
         for (uint8_t combo = 0; combo < num_combos; combo++) {
             uint8_t in_a = (combo >> 0) & 1;
             uint8_t in_b = (combo >> 1) & 1;
+            uint8_t in_c = (combo >> 2) & 1;
 
             // Apply inputs
             zif_hal_write(phys_in0, in_a == 1);
             if (phys_in1 != 0) {
                 zif_hal_write(phys_in1, in_b == 1);
             }
+            if (phys_in2 != 0) {
+                zif_hal_write(phys_in2, in_c == 1);
+            }
 
             delayMicroseconds(PROP_DELAY_US); // Propagation delay
 
             // Read output
             uint8_t actual   = zif_hal_read(phys_out) ? 1 : 0;
-            uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b);
+            uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b, in_c, gate.num_inputs);
             bool    row_pass = (actual == expected);
 
             gr.rows[combo] = {
-                in_a, in_b, expected, actual, row_pass
+                in_a, in_b, in_c, expected, actual, row_pass
             };
 
             if (!row_pass) {
@@ -121,6 +130,9 @@ bool ic_tester_run(
         zif_hal_configure(phys_in0, ZIFPinRole::FLOAT);
         if (phys_in1 != 0) {
             zif_hal_configure(phys_in1, ZIFPinRole::FLOAT);
+        }
+        if (phys_in2 != 0) {
+            zif_hal_configure(phys_in2, ZIFPinRole::FLOAT);
         }
         zif_hal_configure(phys_out, ZIFPinRole::FLOAT);
 

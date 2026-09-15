@@ -50,9 +50,9 @@ struct ICPin {
 struct ICGate {
     uint8_t  id;                  // Gate number (1-based)
     GateType type;
-    uint8_t  input_pins[2];       // ZIF pin numbers (0 if unused, e.g. NOT gate)
+    uint8_t  input_pins[3];       // ZIF pin numbers (0 if unused, e.g. NOT gate)
     uint8_t  output_pin;          // ZIF pin number
-    uint8_t  num_inputs;          // 1 (NOT) or 2 (AND, OR, etc.)
+    uint8_t  num_inputs;          // 1 (NOT), 2 (AND, OR, etc.), 3 (3-input gates)
 };
 
 // ─── IC Descriptor ────────────────────────────────────────────────────────
@@ -73,12 +73,14 @@ struct ICDescriptor {
 // ─── Truth Table Computation ──────────────────────────────────────────────
 /**
  * @brief Compute expected output for a gate given its inputs.
- * @param type     Gate logic type
- * @param a        Input A (0 or 1)
- * @param b        Input B (0 or 1, ignored for NOT/BUFFER)
- * @return         Expected output (0 or 1)
+ * @param type        Gate logic type
+ * @param a           Input A (0 or 1)
+ * @param b           Input B (0 or 1, ignored for NOT/BUFFER)
+ * @param c           Input C (0 or 1, used for 3-input gates)
+ * @param num_inputs  Number of inputs (1, 2, or 3)
+ * @return            Expected output (0 or 1)
  */
-uint8_t ic_db_compute_expected(GateType type, uint8_t a, uint8_t b = 0);
+uint8_t ic_db_compute_expected(GateType type, uint8_t a, uint8_t b = 0, uint8_t c = 0, uint8_t num_inputs = 2);
 
 // ─── Database Access ──────────────────────────────────────────────────────
 /** @brief Return number of ICs in the database. */

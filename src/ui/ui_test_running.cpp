@@ -83,13 +83,12 @@ static void show_gate_data(uint8_t gate_idx) {
     reset_pin_lights(pc);
 
     // 2. Light up inputs (Neon Cyan)
-    if (gate.input_pins[0] >= 1 && gate.input_pins[0] <= pc && pin_nodes[gate.input_pins[0]]) {
-        lv_obj_set_style_bg_color(pin_nodes[gate.input_pins[0]], lv_color_hex(0x38BDF8), 0);
-        lv_obj_set_style_border_color(pin_nodes[gate.input_pins[0]], lv_color_hex(0xBAE6FD), 0);
-    }
-    if (gate.num_inputs > 1 && gate.input_pins[1] >= 1 && gate.input_pins[1] <= pc && pin_nodes[gate.input_pins[1]]) {
-        lv_obj_set_style_bg_color(pin_nodes[gate.input_pins[1]], lv_color_hex(0x38BDF8), 0);
-        lv_obj_set_style_border_color(pin_nodes[gate.input_pins[1]], lv_color_hex(0xBAE6FD), 0);
+    for (uint8_t inp = 0; inp < gate.num_inputs; inp++) {
+        uint8_t pin = gate.input_pins[inp];
+        if (pin >= 1 && pin <= pc && pin_nodes[pin]) {
+            lv_obj_set_style_bg_color(pin_nodes[pin], lv_color_hex(0x38BDF8), 0);
+            lv_obj_set_style_border_color(pin_nodes[pin], lv_color_hex(0xBAE6FD), 0);
+        }
     }
 
     // 3. Light up output (Bright Emerald Green if pass, Red if fail)
@@ -118,7 +117,7 @@ static void show_gate_data(uint8_t gate_idx) {
     }
 
     // 6. Populate Truth Table Rows
-    uint8_t num_combos = (gate.num_inputs == 1) ? 2 : 4;
+    uint8_t num_combos = (gate.num_inputs == 1) ? 2 : (gate.num_inputs == 2 ? 4 : 8);
     for (uint8_t r = 0; r < 4; r++) {
         if (r < num_combos) {
             lv_obj_clear_flag(row_cont[r], LV_OBJ_FLAG_HIDDEN);
@@ -127,8 +126,10 @@ static void show_gate_data(uint8_t gate_idx) {
             char in_txt[16];
             if (gate.num_inputs == 1) {
                 snprintf(in_txt, sizeof(in_txt), " [%d] ", row.input_a);
-            } else {
+            } else if (gate.num_inputs == 2) {
                 snprintf(in_txt, sizeof(in_txt), "[%d,%d]", row.input_a, row.input_b);
+            } else {
+                snprintf(in_txt, sizeof(in_txt), "[%d%d%d]", row.input_a, row.input_b, row.input_c);
             }
             lv_label_set_text(lbl_row_in[r], in_txt);
 

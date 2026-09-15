@@ -205,7 +205,7 @@ void ui_splash_show(void) {
 
     // Header Telemetry Badge (Right side)
     lv_obj_t *lbl_hud_telemetry = lv_label_create(hud_bar);
-    lv_label_set_text(lbl_hud_telemetry, "ESP32-S3 [240MHz]");
+    lv_label_set_text(lbl_hud_telemetry, "ESP32-S3 [v1.1]");
     lv_obj_set_style_text_font(lbl_hud_telemetry, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_hud_telemetry, CLR_BLUE_DIM, 0);
     lv_obj_align(lbl_hud_telemetry, LV_ALIGN_RIGHT_MID, -4, 0);

@@ -25,6 +25,8 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
         uint8_t phys_in0 = physical_zif(gate.input_pins[0], pc);
         uint8_t phys_in1 = (gate.num_inputs > 1 && gate.input_pins[1] != 0)
                            ? physical_zif(gate.input_pins[1], pc) : 0;
+        uint8_t phys_in2 = (gate.num_inputs > 2 && gate.input_pins[2] != 0)
+                           ? physical_zif(gate.input_pins[2], pc) : 0;
 
         // Set up pins
         zif_hal_configure(phys_out, ZIFPinRole::DUT_OUTPUT);
@@ -32,20 +34,27 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
         if (phys_in1 != 0) {
             zif_hal_configure(phys_in1, ZIFPinRole::DUT_INPUT, false);
         }
+        if (phys_in2 != 0) {
+            zif_hal_configure(phys_in2, ZIFPinRole::DUT_INPUT, false);
+        }
 
-        uint8_t num_combos = (gate.num_inputs == 1) ? 2 : 4;
+        uint8_t num_combos = (gate.num_inputs == 1) ? 2 : (gate.num_inputs == 2 ? 4 : 8);
         for (uint8_t c = 0; c < num_combos; c++) {
             uint8_t in_a = (c >> 0) & 1;
             uint8_t in_b = (c >> 1) & 1;
+            uint8_t in_c = (c >> 2) & 1;
 
             zif_hal_write(phys_in0, in_a == 1);
             if (phys_in1 != 0) {
                 zif_hal_write(phys_in1, in_b == 1);
             }
+            if (phys_in2 != 0) {
+                zif_hal_write(phys_in2, in_c == 1);
+            }
 
             delayMicroseconds(10);
             uint8_t actual   = zif_hal_read(phys_out) ? 1 : 0;
-            uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b);
+            uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b, in_c, gate.num_inputs);
 
             total_rows++;
             if (actual == expected) pass_rows++;
@@ -55,6 +64,9 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
         zif_hal_configure(phys_in0, ZIFPinRole::FLOAT);
         if (phys_in1 != 0) {
             zif_hal_configure(phys_in1, ZIFPinRole::FLOAT);
+        }
+        if (phys_in2 != 0) {
+            zif_hal_configure(phys_in2, ZIFPinRole::FLOAT);
         }
         zif_hal_configure(phys_out, ZIFPinRole::FLOAT);
     }

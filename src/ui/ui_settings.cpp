@@ -192,7 +192,7 @@ void ui_settings_show(void) {
 
     // ── About row ─────────────────────────────────────────────────────────
     lv_obj_t *lbl_about = lv_label_create(cont);
-    lv_label_set_text(lbl_about, "IC Checker v1.0  |  Fahim Hossain");
+    lv_label_set_text(lbl_about, "IC Checker v1.1  |  Fahim Hossain");
     lv_obj_set_style_text_font(lbl_about, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_about, CLR_TEXT_DIM, 0);
     lv_obj_set_style_text_align(lbl_about, LV_TEXT_ALIGN_CENTER, 0);
