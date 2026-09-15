@@ -209,9 +209,11 @@ void ui_ic_select_show(void) {
         // Pressed state
         lv_obj_set_style_bg_color(row, CLR_BG_DARK, LV_STATE_PRESSED);
 
-        // IC number (left)
+        // IC number with number prefix: "1. 7400", "2. 7402", etc.
+        char num_buf[16];
+        snprintf(num_buf, sizeof(num_buf), "%d. %s", i + 1, ic->ic_number);
         lv_obj_t *lbl_num = lv_label_create(row);
-        lv_label_set_text(lbl_num, ic->ic_number);
+        lv_label_set_text(lbl_num, num_buf);
         lv_obj_set_style_text_font(lbl_num, FONT_MEDIUM, 0);
         lv_obj_set_style_text_color(lbl_num, CLR_TEXT_LABEL, 0); // Deep Forest Green
         lv_obj_align(lbl_num, LV_ALIGN_LEFT_MID, 6, 0);
@@ -222,8 +224,8 @@ void ui_ic_select_show(void) {
         lv_obj_set_style_text_font(lbl_name, FONT_TINY, 0);
         lv_obj_set_style_text_color(lbl_name, CLR_TEXT_DIM, 0);
         lv_label_set_long_mode(lbl_name, LV_LABEL_LONG_CLIP);
-        lv_obj_set_width(lbl_name, 140);
-        lv_obj_align(lbl_name, LV_ALIGN_LEFT_MID, 68, 0);
+        lv_obj_set_width(lbl_name, 126);
+        lv_obj_align(lbl_name, LV_ALIGN_LEFT_MID, 84, 0);
 
         // Pin count badge (right)
         char badge[8];

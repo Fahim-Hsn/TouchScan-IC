@@ -242,13 +242,13 @@ static const ICDescriptor ic_7411 = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Database
+//  Database (Sorted in Ascending Order)
 // ═══════════════════════════════════════════════════════════════════════════
 static const ICDescriptor *ic_database[] = {
-    &ic_7408,
     &ic_7400,
     &ic_7402,
     &ic_7404,
+    &ic_7408,
     &ic_7411,
     &ic_7432,
     &ic_7486,
