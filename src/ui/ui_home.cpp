@@ -345,7 +345,7 @@ void ui_home_show(void) {
 
     // IC Label in Center
     lv_obj_t *lbl_chip_text = lv_label_create(chip_body);
-    lv_label_set_text(lbl_chip_text, "BCC 11th");
+    lv_label_set_text(lbl_chip_text, "BAIUST");
     lv_obj_set_style_text_font(lbl_chip_text, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_chip_text, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_chip_text, LV_ALIGN_CENTER, 2, 0);
@@ -435,7 +435,7 @@ void ui_home_show(void) {
     make_nav_tab(LV_SYMBOL_SETTINGS, "CONFIG", on_btn_settings, false);
 
     // ── Load screen ──────────────────────────────────────────────────
-    lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
+    lv_scr_load_anim(scr_home, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 
     // ── Start background timers ───────────────────────────────────────
     t_ic_anim    = lv_timer_create(ic_scan_anim_cb, 180, nullptr); // Logic scan animation

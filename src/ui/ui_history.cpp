@@ -158,5 +158,5 @@ void ui_history_show(void) {
     }
     prefs.end();
 
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, true);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 }

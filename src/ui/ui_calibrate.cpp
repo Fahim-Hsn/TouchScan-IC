@@ -193,7 +193,7 @@ void ui_calibrate_show(void) {
     lv_obj_set_style_text_color(lbl_cross, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_cross, LV_ALIGN_CENTER, 0, -1);
 
-    lv_scr_load_anim(scr_cal, LV_SCR_LOAD_ANIM_FADE_ON, 200, 0, true);
+    lv_scr_load_anim(scr_cal, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 
     // Start raw polling timer (30ms interval)
     t_poll = lv_timer_create(poll_touch_calibration, 30, nullptr);

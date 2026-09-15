@@ -192,11 +192,11 @@ void ui_settings_show(void) {
 
     // ── About row ─────────────────────────────────────────────────────────
     lv_obj_t *lbl_about = lv_label_create(cont);
-    lv_label_set_text(lbl_about, "IC Checker v1.0  |  ESP32-S3 N16R8");
+    lv_label_set_text(lbl_about, "IC Checker v1.0  |  Fahim Hossain");
     lv_obj_set_style_text_font(lbl_about, FONT_TINY, 0);
     lv_obj_set_style_text_color(lbl_about, CLR_TEXT_DIM, 0);
     lv_obj_set_style_text_align(lbl_about, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(lbl_about, LV_PCT(100));
 
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, true);
+    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 }

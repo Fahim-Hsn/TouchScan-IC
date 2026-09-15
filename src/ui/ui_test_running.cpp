@@ -509,8 +509,8 @@ void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
     lv_bar_set_range(bar_scan, 0, 100);
     lv_bar_set_value(bar_scan, 5, LV_ANIM_OFF);
 
-    // ── Load Screen with Smooth Transition ────────────────────────────────
-    lv_scr_load_anim(scr_test, LV_SCR_LOAD_ANIM_FADE_ON, 200, 0, true);
+    // ── Load Screen with Clean Transition ────────────────────────────────
+    lv_scr_load_anim(scr_test, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 
     // ── Start FreeRTOS Hardware Test Task ─────────────────────────────────
     xTaskCreatePinnedToCore(

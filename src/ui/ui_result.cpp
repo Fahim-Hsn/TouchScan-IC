@@ -339,7 +339,7 @@ void ui_result_show(const ICTestResult *result) {
     lv_obj_align(lbl_save, LV_ALIGN_CENTER, 0, 0);
 
     // ── Load & trigger sound ────────────────────────────────────────────────
-    lv_scr_load_anim(scr_result, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
+    lv_scr_load_anim(scr_result, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 
     lv_timer_create([](lv_timer_t *t) {
         if (g_result && g_result->overall_pass) buzzer_hal_beep_good();

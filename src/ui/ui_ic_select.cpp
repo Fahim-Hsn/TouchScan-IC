@@ -248,7 +248,7 @@ void ui_ic_select_show(void) {
     lv_obj_set_style_text_color(lbl_test, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(lbl_test, LV_ALIGN_CENTER, 0, 0);
 
-    lv_scr_load_anim(scr_select, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, true);
+    lv_scr_load_anim(scr_select, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 }
 
 const ICDescriptor *ui_ic_select_get_selected(void) {
