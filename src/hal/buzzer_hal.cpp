@@ -74,18 +74,18 @@ void buzzer_hal_beep_detect(void) {
 void buzzer_hal_beep_click(void) {
     if (!g_buzzer_enabled) return;
     
-    // Cool, smooth futuristic micro-pip with low duty cycle for soft loudness
+    // Unique, snappy high-tech click with 50% duty cycle for max volume
     ledcAttachPin(BUZZER_GPIO, BUZZER_LEDC_CH);
     
-    // First micro-tone: 3400Hz soft pulse (7ms)
-    ledcSetup(BUZZER_LEDC_CH, 3400, BUZZER_LEDC_RES);
-    ledcWrite(BUZZER_LEDC_CH, 232); // Low duty cycle for quiet, gentle volume
-    delay(7);
+    // First micro-tone: 4200Hz sharp strike (5ms)
+    ledcSetup(BUZZER_LEDC_CH, 4200, BUZZER_LEDC_RES);
+    ledcWrite(BUZZER_LEDC_CH, 127); // 50% duty cycle for loudest output
+    delay(5);
     
-    // Second micro-tone: 4600Hz crystal blip (9ms)
-    ledcSetup(BUZZER_LEDC_CH, 4600, BUZZER_LEDC_RES);
-    ledcWrite(BUZZER_LEDC_CH, 232);
-    delay(9);
+    // Second micro-tone: 3200Hz punchy pop (7ms)
+    ledcSetup(BUZZER_LEDC_CH, 3200, BUZZER_LEDC_RES);
+    ledcWrite(BUZZER_LEDC_CH, 127);
+    delay(7);
     
     set_silent();
 }
