@@ -32,6 +32,12 @@ void zif_hal_init(void);
 void zif_hal_release_all(void);
 
 /**
+ * @brief Actively discharge all ZIF socket pins to GND (0V) for cold reset,
+ *        then release to high-Z. Drains decoupling & internal parasitic charges.
+ */
+void zif_hal_power_down(void);
+
+/**
  * @brief Configure a single ZIF pin.
  * @param zif_pin  ZIF pin number 1–16
  * @param role     FLOAT, VCC, GND, DUT_INPUT, DUT_OUTPUT

@@ -195,7 +195,6 @@ static void on_ui_anim_tick(lv_timer_t *) {
                 lv_timer_del(t_ui_anim);
                 t_ui_anim = nullptr;
             }
-            vTaskDelay(pdMS_TO_TICKS(100));
             ui_result_show(&test_result);
         }
     }
@@ -203,6 +202,11 @@ static void on_ui_anim_tick(lv_timer_t *) {
 
 // ─── Main Screen Builder ──────────────────────────────────────────────────
 void ui_test_running_show(const ICDescriptor *ic, bool auto_detect) {
+    if (!ic) return;
+
+    // Reset results struct completely to ensure no leftover state
+    memset(&test_result, 0, sizeof(test_result));
+
     test_ic        = ic;
     test_done      = false;
     scan_completed = false;

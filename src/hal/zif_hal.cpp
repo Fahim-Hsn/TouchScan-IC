@@ -1,5 +1,11 @@
 /**
  * zif_hal.cpp — ZIF Socket GPIO Implementation
+ *
+ * Reliability improvements:
+ *   - gpio_reset_pin() on every release to fully detach alternate functions
+ *   - GPIO_DRIVE_CAP_3 (40mA) for DUT_INPUT and VCC pins
+ *   - Multi-sample reads with majority voting for noise immunity
+ *   - Proper settling delays after pin configuration changes
  */
 #include "zif_hal.h"
 #include "../config.h"
@@ -32,8 +38,36 @@ void zif_hal_release_all(void) {
     for (uint8_t p = 1; p <= 16; p++) {
         uint8_t gpio = zif_to_gpio(p);
         if (gpio == 0) continue;
+        
+        // Full reset: detach any alternate function, clear drive mode,
+        // discharge residual state — critical for GPIOs 39-42 (ex-JTAG)
+        gpio_reset_pin((gpio_num_t)gpio);
         pinMode(gpio, INPUT);
     }
+    // Brief settle time for all pins to reach high-Z
+    delayMicroseconds(100);
+}
+
+void zif_hal_power_down(void) {
+    // 1. Actively discharge all socket pins to GND (0V)
+    // Drains residual charge from decoupling capacitors and internal CMOS gates
+    for (uint8_t p = 1; p <= 16; p++) {
+        uint8_t gpio = zif_to_gpio(p);
+        if (gpio == 0) continue;
+        pinMode(gpio, OUTPUT);
+        digitalWrite(gpio, LOW);
+    }
+    // Hold at 0V for 15ms to ensure complete discharge (cold baseline)
+    delay(15);
+
+    // 2. Safely release all pins to high-Z INPUT mode
+    for (uint8_t p = 1; p <= 16; p++) {
+        uint8_t gpio = zif_to_gpio(p);
+        if (gpio == 0) continue;
+        gpio_reset_pin((gpio_num_t)gpio);
+        pinMode(gpio, INPUT);
+    }
+    delay(2);
 }
 
 void zif_hal_configure(uint8_t zif_pin, ZIFPinRole role, bool value) {
@@ -42,24 +76,30 @@ void zif_hal_configure(uint8_t zif_pin, ZIFPinRole role, bool value) {
 
     switch (role) {
         case ZIFPinRole::FLOAT:
+            gpio_reset_pin((gpio_num_t)gpio);
             pinMode(gpio, INPUT);
             break;
 
         case ZIFPinRole::VCC:
-            // Drive HIGH — IC supply voltage (3.3V via GPIO, 12mA max)
+            // Drive HIGH — IC supply voltage (3.3V)
+            // Use max drive strength for reliable power delivery through ZIF traces
             pinMode(gpio, OUTPUT);
+            gpio_set_drive_capability((gpio_num_t)gpio, GPIO_DRIVE_CAP_3); // 40mA max
             digitalWrite(gpio, HIGH);
             break;
 
         case ZIFPinRole::GND:
             // Drive LOW — IC ground
+            // Use max drive strength for reliable ground path
             pinMode(gpio, OUTPUT);
+            gpio_set_drive_capability((gpio_num_t)gpio, GPIO_DRIVE_CAP_3); // 40mA max
             digitalWrite(gpio, LOW);
             break;
 
         case ZIFPinRole::DUT_INPUT:
-            // Output to IC input pin
+            // Output to IC input pin — max drive for clean logic levels
             pinMode(gpio, OUTPUT);
+            gpio_set_drive_capability((gpio_num_t)gpio, GPIO_DRIVE_CAP_3); // 40mA max
             digitalWrite(gpio, value ? HIGH : LOW);
             break;
 
@@ -79,7 +119,16 @@ void zif_hal_write(uint8_t zif_pin, bool value) {
 bool zif_hal_read(uint8_t zif_pin) {
     uint8_t gpio = zif_to_gpio(zif_pin);
     if (gpio == 0) return false;
-    return digitalRead(gpio) == HIGH;
+    
+    // Multi-sample read with majority voting for noise immunity.
+    // ZIF socket traces can pick up transient noise — a single digitalRead()
+    // is unreliable. 3 samples with small gaps filters out glitches.
+    uint8_t highs = 0;
+    for (uint8_t i = 0; i < 3; i++) {
+        if (digitalRead(gpio) == HIGH) highs++;
+        delayMicroseconds(5);
+    }
+    return (highs >= 2);  // Majority vote: 2 out of 3
 }
 
 bool zif_hal_detect_ic_presence(void) {
@@ -96,12 +145,19 @@ bool zif_hal_detect_ic_presence(void) {
     zif_hal_release_all();
 
     // --- Try 14-Pin IC Configuration (VCC=ZIF 16, GND=ZIF 7) ---
-    pinMode(zif_to_gpio(16), OUTPUT);
-    digitalWrite(zif_to_gpio(16), HIGH);
-    pinMode(zif_to_gpio(7), OUTPUT);
-    digitalWrite(zif_to_gpio(7), LOW);
+    // Note: For a 14-pin IC top-aligned, VCC is IC pin 14 → ZIF pin 16,
+    //       GND is IC pin 7 → ZIF pin 7
+    uint8_t vcc_gpio = zif_to_gpio(16);
+    uint8_t gnd_gpio = zif_to_gpio(7);
+    
+    pinMode(vcc_gpio, OUTPUT);
+    gpio_set_drive_capability((gpio_num_t)vcc_gpio, GPIO_DRIVE_CAP_3);
+    digitalWrite(vcc_gpio, HIGH);
+    pinMode(gnd_gpio, OUTPUT);
+    gpio_set_drive_capability((gpio_num_t)gnd_gpio, GPIO_DRIVE_CAP_3);
+    digitalWrite(gnd_gpio, LOW);
 
-    delay(2); // Let power rail stabilise
+    delay(5); // Let power rail fully stabilise (IC internal capacitance)
 
     // Active pins on a 14-pin IC top-aligned:
     // Left side: ZIF 1..6 (IC 1..6)
@@ -114,11 +170,11 @@ bool zif_hal_detect_ic_presence(void) {
         if (gpio == 0) continue;
 
         pinMode(gpio, INPUT_PULLUP);
-        delayMicroseconds(50);
+        delayMicroseconds(100);
         bool val_pullup = (digitalRead(gpio) == HIGH);
 
         pinMode(gpio, INPUT_PULLDOWN);
-        delayMicroseconds(50);
+        delayMicroseconds(100);
         bool val_pulldown = (digitalRead(gpio) == HIGH);
 
         if (val_pullup == val_pulldown) {
@@ -133,12 +189,17 @@ bool zif_hal_detect_ic_presence(void) {
     }
 
     // --- Try 16-Pin IC Configuration (VCC=ZIF 16, GND=ZIF 8) ---
-    pinMode(zif_to_gpio(16), OUTPUT);
-    digitalWrite(zif_to_gpio(16), HIGH);
-    pinMode(zif_to_gpio(8), OUTPUT);
-    digitalWrite(zif_to_gpio(8), LOW);
+    vcc_gpio = zif_to_gpio(16);
+    gnd_gpio = zif_to_gpio(8);
+    
+    pinMode(vcc_gpio, OUTPUT);
+    gpio_set_drive_capability((gpio_num_t)vcc_gpio, GPIO_DRIVE_CAP_3);
+    digitalWrite(vcc_gpio, HIGH);
+    pinMode(gnd_gpio, OUTPUT);
+    gpio_set_drive_capability((gpio_num_t)gnd_gpio, GPIO_DRIVE_CAP_3);
+    digitalWrite(gnd_gpio, LOW);
 
-    delay(2);
+    delay(5);
 
     const uint8_t pins_16[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15};
     uint8_t detected_16 = 0;
@@ -148,11 +209,11 @@ bool zif_hal_detect_ic_presence(void) {
         if (gpio == 0) continue;
 
         pinMode(gpio, INPUT_PULLUP);
-        delayMicroseconds(50);
+        delayMicroseconds(100);
         bool val_pullup = (digitalRead(gpio) == HIGH);
 
         pinMode(gpio, INPUT_PULLDOWN);
-        delayMicroseconds(50);
+        delayMicroseconds(100);
         bool val_pulldown = (digitalRead(gpio) == HIGH);
 
         if (val_pullup == val_pulldown) {

@@ -1,5 +1,12 @@
 /**
  * auto_detect.cpp — IC Auto-Detection Implementation
+ *
+ * Reliability improvements:
+ *   - Increased VCC/GND settling delay (5ms instead of 500µs)
+ *   - Increased propagation delay (50µs instead of 10µs)
+ *   - Proper gpio_reset_pin-based release between candidates
+ *   - Settling delay after configuring DUT_OUTPUT before reading
+ *   - Multi-sample reads via zif_hal_read (majority voting)
  */
 #include "auto_detect.h"
 #include "ic_tester.h"
@@ -13,11 +20,24 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
     uint16_t pass_rows  = 0;
     uint8_t  pc         = desc->pin_count;
 
-    // Apply VCC and GND using physical ZIF mapping
-    zif_hal_release_all();
+    // Full discharge reset before testing this candidate
+    zif_hal_power_down();
+
+    // Pre-ground ALL candidate input pins to prevent CMOS floating inputs
+    for (uint8_t p = 0; p < desc->pin_count; p++) {
+        const ICPin &pin = desc->pins[p];
+        uint8_t phys_pin = physical_zif(pin.zif_pin, pc);
+        if (pin.role == PinRole::PIN_IN) {
+            zif_hal_configure(phys_pin, ZIFPinRole::DUT_INPUT, false); // Driven LOW (0V)
+        } else if (pin.role == PinRole::PIN_OUT) {
+            zif_hal_configure(phys_pin, ZIFPinRole::DUT_OUTPUT); // Safe listening mode
+        }
+    }
+
+    // Apply VCC and GND using physical ZIF mapping with proper settling
     zif_hal_configure(physical_zif(desc->vcc_pin, pc), ZIFPinRole::VCC);
     zif_hal_configure(physical_zif(desc->gnd_pin, pc), ZIFPinRole::GND);
-    delayMicroseconds(500);
+    delay(10); // 10ms for IC power rail to fully stabilise
 
     for (uint8_t g = 0; g < desc->num_gates; g++) {
         const ICGate &gate = desc->gates[g];
@@ -28,15 +48,14 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
         uint8_t phys_in2 = (gate.num_inputs > 2 && gate.input_pins[2] != 0)
                            ? physical_zif(gate.input_pins[2], pc) : 0;
 
-        // Set up pins
+        // Ensure current gate pins are configured
         zif_hal_configure(phys_out, ZIFPinRole::DUT_OUTPUT);
         zif_hal_configure(phys_in0, ZIFPinRole::DUT_INPUT, false);
-        if (phys_in1 != 0) {
-            zif_hal_configure(phys_in1, ZIFPinRole::DUT_INPUT, false);
-        }
-        if (phys_in2 != 0) {
-            zif_hal_configure(phys_in2, ZIFPinRole::DUT_INPUT, false);
-        }
+        if (phys_in1 != 0) zif_hal_configure(phys_in1, ZIFPinRole::DUT_INPUT, false);
+        if (phys_in2 != 0) zif_hal_configure(phys_in2, ZIFPinRole::DUT_INPUT, false);
+
+        // Brief settle after pin configuration
+        delayMicroseconds(200);
 
         uint8_t num_combos = (gate.num_inputs == 1) ? 2 : (gate.num_inputs == 2 ? 4 : 8);
         for (uint8_t c = 0; c < num_combos; c++) {
@@ -45,14 +64,11 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
             uint8_t in_c = (c >> 2) & 1;
 
             zif_hal_write(phys_in0, in_a == 1);
-            if (phys_in1 != 0) {
-                zif_hal_write(phys_in1, in_b == 1);
-            }
-            if (phys_in2 != 0) {
-                zif_hal_write(phys_in2, in_c == 1);
-            }
+            if (phys_in1 != 0) zif_hal_write(phys_in1, in_b == 1);
+            if (phys_in2 != 0) zif_hal_write(phys_in2, in_c == 1);
 
-            delayMicroseconds(10);
+            delayMicroseconds(50); // Propagation delay (74HC max ~25ns + ZIF trace parasitic)
+            
             uint8_t actual   = zif_hal_read(phys_out) ? 1 : 0;
             uint8_t expected = ic_db_compute_expected(gate.type, in_a, in_b, in_c, gate.num_inputs);
 
@@ -60,18 +76,13 @@ static uint8_t score_candidate(const ICDescriptor *desc) {
             if (actual == expected) pass_rows++;
         }
 
-        // Float pins
-        zif_hal_configure(phys_in0, ZIFPinRole::FLOAT);
-        if (phys_in1 != 0) {
-            zif_hal_configure(phys_in1, ZIFPinRole::FLOAT);
-        }
-        if (phys_in2 != 0) {
-            zif_hal_configure(phys_in2, ZIFPinRole::FLOAT);
-        }
-        zif_hal_configure(phys_out, ZIFPinRole::FLOAT);
+        // Return tested inputs to LOW (0V) — do NOT float them
+        zif_hal_write(phys_in0, false);
+        if (phys_in1 != 0) zif_hal_write(phys_in1, false);
+        if (phys_in2 != 0) zif_hal_write(phys_in2, false);
     }
 
-    zif_hal_release_all();
+    zif_hal_power_down();
 
     if (total_rows == 0) return 0;
     return (uint8_t)((pass_rows * 100) / total_rows);
@@ -100,7 +111,7 @@ const ICDescriptor *auto_detect_ic(uint8_t *confidence_out) {
         if (score == 100) break;
 
         // Yield to FreeRTOS to keep LVGL animations smooth
-        delay(1);
+        delay(2);
     }
 
     if (confidence_out) *confidence_out = best_score;

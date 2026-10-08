@@ -21,9 +21,16 @@
 #define TOUCH_CS 7
 #define TOUCH_IRQ 6
 
+// --- Default Calibration Values ---
+#define DEFAULT_CAL_X_MIN 3647
+#define DEFAULT_CAL_X_MAX 297
+#define DEFAULT_CAL_Y_MIN 3770
+#define DEFAULT_CAL_Y_MAX 397
+
 // ─── Global instances ─────────────────────────────────────────────────────
 Adafruit_ST7789 tft = Adafruit_ST7789(&SPI, TFT_CS, TFT_DC, TFT_RST);
-XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+// Initialise without enforcing mandatory IRQ pin so touch always works even if T_IRQ is unconnected
+XPT2046_Touchscreen ts(TOUCH_CS);
 
 // ─── LVGL Draw Buffers (allocated in SRAM) ────────────────────────────────
 static lv_color_t fb_buf[DISPLAY_WIDTH * 60];
@@ -35,22 +42,36 @@ static lv_coord_t last_touch_x = 0;
 static lv_coord_t last_touch_y = 0;
 
 // ─── Calibration Values ───────────────────────────────────────────────────
-static int touch_raw_x_min = 3647;
-static int touch_raw_x_max = 297;
-static int touch_raw_y_min = 3770;
-static int touch_raw_y_max = 397;
+static int touch_raw_x_min = DEFAULT_CAL_X_MIN;
+static int touch_raw_x_max = DEFAULT_CAL_X_MAX;
+static int touch_raw_y_min = DEFAULT_CAL_Y_MIN;
+static int touch_raw_y_max = DEFAULT_CAL_Y_MAX;
+
+static bool is_valid_calibration(int x_min, int x_max, int y_min, int y_max) {
+    if (abs(x_max - x_min) < 400 || abs(y_max - y_min) < 400) return false;
+    if (x_min < 0 || x_max < 0 || y_min < 0 || y_max < 0) return false;
+    if (x_min > 4095 || x_max > 4095 || y_min > 4095 || y_max > 4095) return false;
+    return true;
+}
 
 void tft_hal_set_calibration(int cal_x_min, int cal_x_max, int cal_y_min, int cal_y_max) {
-    touch_raw_x_min = cal_x_min;
-    touch_raw_x_max = cal_x_max;
-    touch_raw_y_min = cal_y_min;
-    touch_raw_y_max = cal_y_max;
+    if (is_valid_calibration(cal_x_min, cal_x_max, cal_y_min, cal_y_max)) {
+        touch_raw_x_min = cal_x_min;
+        touch_raw_x_max = cal_x_max;
+        touch_raw_y_min = cal_y_min;
+        touch_raw_y_max = cal_y_max;
+    } else {
+        touch_raw_x_min = DEFAULT_CAL_X_MIN;
+        touch_raw_x_max = DEFAULT_CAL_X_MAX;
+        touch_raw_y_min = DEFAULT_CAL_Y_MIN;
+        touch_raw_y_max = DEFAULT_CAL_Y_MAX;
+    }
 }
 
 bool tft_hal_get_raw_touch(int *raw_x, int *raw_y) {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
-        if (p.z > 50) {
+        if (p.z > 50 && p.z < 4000) {
             if (raw_x) *raw_x = p.x;
             if (raw_y) *raw_y = p.y;
             return true;
@@ -76,7 +97,7 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     if (ts.touched()) {
         TS_Point p = ts.getPoint();
-        if (p.z > 50) {
+        if (p.z > 50 && p.z < 4000) {
             int screen_x = map(p.x, touch_raw_x_min, touch_raw_x_max, 0, DISPLAY_WIDTH - 1);
             int screen_y = map(p.y, touch_raw_y_min, touch_raw_y_max, 0, DISPLAY_HEIGHT - 1);
 
@@ -104,15 +125,29 @@ void tft_hal_init(void) {
     digitalWrite(TFT_CS, HIGH);
     pinMode(TOUCH_CS, OUTPUT);
     digitalWrite(TOUCH_CS, HIGH);
+    pinMode(SPI_MISO, INPUT_PULLUP);
+    pinMode(TOUCH_IRQ, INPUT_PULLUP);
 
     // --- Load saved calibration from NVS ---
     Preferences prefs;
     prefs.begin("touch_cal", true);
-    touch_raw_x_min = prefs.getInt("x_min", 3647);
-    touch_raw_x_max = prefs.getInt("x_max", 297);
-    touch_raw_y_min = prefs.getInt("y_min", 3770);
-    touch_raw_y_max = prefs.getInt("y_max", 397);
+    int x_min = prefs.getInt("x_min", DEFAULT_CAL_X_MIN);
+    int x_max = prefs.getInt("x_max", DEFAULT_CAL_X_MAX);
+    int y_min = prefs.getInt("y_min", DEFAULT_CAL_Y_MIN);
+    int y_max = prefs.getInt("y_max", DEFAULT_CAL_Y_MAX);
     prefs.end();
+
+    if (is_valid_calibration(x_min, x_max, y_min, y_max)) {
+        touch_raw_x_min = x_min;
+        touch_raw_x_max = x_max;
+        touch_raw_y_min = y_min;
+        touch_raw_y_max = y_max;
+    } else {
+        touch_raw_x_min = DEFAULT_CAL_X_MIN;
+        touch_raw_x_max = DEFAULT_CAL_X_MAX;
+        touch_raw_y_min = DEFAULT_CAL_Y_MIN;
+        touch_raw_y_max = DEFAULT_CAL_Y_MAX;
+    }
 
     // --- Init SPI and Display ---
     SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);

@@ -229,18 +229,29 @@ static void draw_ic_visualization(lv_obj_t *parent, const ICTestResult *r) {
     lv_obj_align(lbl_badge, LV_ALIGN_CENTER, 0, 0);
 }
 
+static lv_timer_t *t_verdict_beep = nullptr;
+
 // ─── Button callbacks ─────────────────────────────────────────────────────
 static void on_home(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     buzzer_hal_beep_click();
+    if (t_verdict_beep) {
+        lv_timer_del(t_verdict_beep);
+        t_verdict_beep = nullptr;
+    }
     ui_home_show();
 }
 
 static void on_retest(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
     buzzer_hal_beep_click();
+    if (t_verdict_beep) {
+        lv_timer_del(t_verdict_beep);
+        t_verdict_beep = nullptr;
+    }
     if (g_result && g_result->ic) {
-        ui_test_running_show(g_result->ic, false);
+        const ICDescriptor *ic = g_result->ic;
+        ui_test_running_show(ic, false);
     }
 }
 
@@ -341,9 +352,15 @@ void ui_result_show(const ICTestResult *result) {
     // ── Load & trigger sound ────────────────────────────────────────────────
     lv_scr_load_anim(scr_result, LV_SCR_LOAD_ANIM_NONE, 0, 0, true);
 
-    lv_timer_create([](lv_timer_t *t) {
+    if (t_verdict_beep) {
+        lv_timer_del(t_verdict_beep);
+        t_verdict_beep = nullptr;
+    }
+
+    t_verdict_beep = lv_timer_create([](lv_timer_t *t) {
         if (g_result && g_result->overall_pass) buzzer_hal_beep_good();
         else                                    buzzer_hal_beep_bad();
         lv_timer_del(t);
+        t_verdict_beep = nullptr;
     }, 400, nullptr);
 }
